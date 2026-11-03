@@ -1,0 +1,3477 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mike Calc - Precision Scientific, Graphing &amp; Programmer Calculator</title>
+    <meta name="description" content="Mike Calc - A world-class, feature-complete browser-based calculator featuring Standard, Scientific, Graphing, and Programmer modes with interactive canvas coordinate plane, history, memory, precision math engine, and keyboard navigation." />
+    <meta property="og:title" content="Mike Calc - Precision Scientific, Graphing &amp; Programmer Calculator" />
+    <meta property="og:description" content="Mike Calc - A world-class, feature-complete browser-based calculator featuring Standard, Scientific, Graphing, and Programmer modes with interactive canvas coordinate plane, history, memory, precision math engine, and keyboard navigation." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <!-- Font Awesome 6 CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- Tailwind CSS v3 CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+              mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+            },
+            colors: {
+              brand: {
+                50: '#eef2ff',
+                100: '#e0e7ff',
+                200: '#c7d2fe',
+                300: '#a5b4fc',
+                400: '#818cf8',
+                500: '#6366f1',
+                600: '#4f46e5',
+                700: '#4338ca',
+                800: '#3730a3',
+                900: '#312e81',
+              },
+            },
+            gridTemplateColumns: {
+              '16': 'repeat(16, minmax(0, 1fr))',
+            },
+            boxShadow: {
+              'tactile': '0 2px 0 rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1)',
+              'tactile-pressed': 'inset 0 2px 4px rgba(0, 0, 0, 0.15)',
+              'display': 'inset 0 2px 6px rgba(0, 0, 0, 0.08)',
+            }
+          },
+        },
+      };
+    </script>
+
+    <style>
+      /* Custom tactile button interaction */
+      .calc-btn {
+        transition: all 0.08s cubic-bezier(0.2, 0, 0, 1);
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .calc-btn:active, .calc-btn.key-pressed {
+        transform: scale(0.96);
+        filter: brightness(0.92);
+      }
+      .dark .calc-btn:active, .dark .calc-btn.key-pressed {
+        filter: brightness(1.2);
+      }
+
+      /* Custom scrollbars */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, 0.4);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(100, 116, 139, 0.6);
+      }
+
+      /* Bit toggle matrix animation */
+      .bit-cell {
+        transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+      }
+
+      /* Animation for toast */
+      @keyframes toastIn {
+        from { opacity: 0; transform: translateY(12px) scale(0.95); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      .animate-toast-in {
+        animation: toastIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+
+      /* Subtle pulse on result calculation */
+      @keyframes flashResult {
+        0% { opacity: 0.65; transform: scale(0.995); }
+        100% { opacity: 1; transform: scale(1); }
+      }
+      .result-pulse {
+        animation: flashResult 0.15s ease-out;
+      }
+    </style>
+  </head>
+  <body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans min-h-screen flex flex-col transition-colors duration-200 antialiased selection:bg-brand-500 selection:text-white">
+
+    <!-- Top Navigation Bar -->
+    <header class="border-b border-slate-200 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-30">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        
+        <!-- Left: Logo & Branding -->
+        <div class="flex items-center gap-3 shrink-0">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+            <i class="fa-solid fa-calculator text-base"></i>
+          </div>
+          <div>
+            <span class="text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
+              Mike<span class="text-brand-600 dark:text-brand-400">Calc</span>
+              <span class="text-[10px] font-mono font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">PRO</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Center: Interactive Mode Selector Tabs -->
+        <div class="flex items-center p-1 bg-slate-100 dark:bg-slate-800/90 rounded-xl border border-slate-200/80 dark:border-slate-700/80 text-xs font-semibold">
+          <button id="mode-standard-btn" class="mode-tab-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-slate-900 dark:text-white bg-white dark:bg-slate-700 shadow-sm" data-mode="standard">
+            <i class="fa-solid fa-shapes text-xs"></i>
+            <span class="hidden sm:inline">Standard</span>
+          </button>
+          <button id="mode-scientific-btn" class="mode-tab-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white" data-mode="scientific">
+            <i class="fa-solid fa-square-root-variable text-xs"></i>
+            <span class="hidden sm:inline">Scientific</span>
+          </button>
+          <button id="mode-programmer-btn" class="mode-tab-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white" data-mode="programmer">
+            <i class="fa-solid fa-code text-xs"></i>
+            <span class="hidden sm:inline">Programmer</span>
+          </button>
+          <button id="mode-graphing-btn" class="mode-tab-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white" data-mode="graphing">
+            <i class="fa-solid fa-chart-line text-xs"></i>
+            <span class="hidden sm:inline">Graphing</span>
+          </button>
+        </div>
+
+        <!-- Right Utilities: Theme Toggle, Keyboard Shortcuts, History Drawer -->
+        <div class="flex items-center gap-2 shrink-0">
+          <!-- Dark/Light Mode Toggle -->
+          <button id="theme-toggle-btn" class="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-700/80 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Toggle Theme" aria-label="Toggle theme">
+            <i id="theme-icon" class="fa-solid fa-sun text-amber-500 dark:text-amber-400 text-sm"></i>
+          </button>
+
+          <!-- Keyboard Shortcuts Modal Trigger -->
+          <button id="shortcuts-modal-btn" class="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-700/80 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Keyboard Shortcuts" aria-label="Keyboard Shortcuts">
+            <i class="fa-solid fa-keyboard text-sm"></i>
+          </button>
+
+          <!-- History & Memory Drawer Toggle -->
+          <button id="history-drawer-toggle" class="relative px-3 h-9 rounded-xl border border-slate-200 dark:border-slate-700/80 flex items-center gap-2 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-xs font-semibold" title="Calculation History & Memory" aria-label="Toggle History and Memory">
+            <i class="fa-solid fa-clock-rotate-left text-sm text-brand-600 dark:text-brand-400"></i>
+            <span class="hidden md:inline">History</span>
+            <span id="history-badge" class="min-w-4 h-4 px-1 rounded-full bg-brand-500 text-white text-[10px] font-mono flex items-center justify-center font-bold">0</span>
+          </button>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="flex-1 flex flex-col justify-center items-center px-3 sm:px-6 py-6 md:py-8 max-w-7xl mx-auto w-full relative">
+      
+      <div id="calculator-card" class="w-full max-w-md transition-all duration-300 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xl shadow-slate-200/50 dark:shadow-none">
+        
+        <!-- Calculator Header & Mode Info -->
+        <div class="flex items-center justify-between pb-3 text-xs text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800/60 mb-3">
+          <div class="flex items-center gap-2">
+            <span id="active-mode-label" class="font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">Standard Mode</span>
+            <span id="active-angle-badge" class="hidden cursor-pointer hover:underline text-brand-600 dark:text-brand-400 font-mono font-semibold px-1.5 py-0.5 rounded bg-brand-50 dark:bg-brand-950/50 border border-brand-200 dark:border-brand-800">DEG</span>
+            <span id="active-programmer-word-badge" class="hidden font-mono text-[11px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">64-bit QWORD</span>
+          </div>
+          
+          <div class="flex items-center gap-2">
+            <span id="memory-active-indicator" class="hidden text-[10px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">MEM ACTIVE</span>
+            <button id="clear-all-quick-btn" class="hover:text-rose-600 dark:hover:text-rose-400 transition-colors text-xs font-semibold px-2 py-0.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40" title="Clear all (Escape)">
+              RESET
+            </button>
+          </div>
+        </div>
+
+        <!-- Expression & Result Dual-Line Display -->
+        <div class="bg-slate-50 dark:bg-slate-950/90 border border-slate-200 dark:border-slate-800/90 rounded-2xl p-4 sm:p-5 mb-4 shadow-display relative group">
+          
+          <!-- Secondary Display: Full Expression History -->
+          <div class="flex items-center justify-between text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-mono h-6 mb-1 overflow-x-auto whitespace-nowrap scrollbar-none">
+            <span id="display-prev-ans" class="text-[11px] text-slate-400 dark:text-slate-500 mr-2 shrink-0"></span>
+            <span id="display-expression" class="w-full text-right overflow-x-auto select-all" dir="ltr"></span>
+          </div>
+
+          <!-- Primary Main Display: Current Input / Result -->
+          <div class="flex items-baseline justify-end overflow-hidden">
+            <span id="display-result" class="font-mono font-bold text-3xl sm:text-4xl md:text-5xl tracking-tight text-slate-900 dark:text-white text-right tabular-nums break-all transition-all">
+              0
+            </span>
+          </div>
+
+          <!-- Display Action Utilities -->
+          <div class="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <div class="flex items-center gap-1.5">
+              <span id="display-mode-subtext" class="text-[11px] font-mono">PEMDAS Engine</span>
+            </div>
+            
+            <div class="flex items-center gap-1">
+              <!-- Copy to Clipboard Button -->
+              <button id="copy-result-btn" class="px-2.5 py-1 rounded-lg hover:bg-slate-200/80 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all flex items-center gap-1.5 text-xs font-medium" title="Copy Result">
+                <i class="fa-regular fa-copy text-xs"></i>
+                <span class="hidden sm:inline">Copy</span>
+              </button>
+              
+              <!-- Backspace Utility -->
+              <button id="backspace-btn" class="px-2.5 py-1 rounded-lg hover:bg-slate-200/80 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all flex items-center gap-1.5 text-xs font-medium" title="Backspace (⌫)">
+                <i class="fa-solid fa-delete-left text-xs"></i>
+                <span class="hidden sm:inline">Del</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Programmer Mode Special Panels (HEX/DEC/OCT/BIN & 64-Bit Visualizer) -->
+        <div id="programmer-panel" class="hidden mb-4 space-y-3">
+          
+          <!-- Base Selector Rows (HEX, DEC, OCT, BIN) -->
+          <div class="grid grid-cols-1 gap-1 text-xs font-mono bg-slate-50 dark:bg-slate-950/70 p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800">
+            
+            <button class="base-row-btn flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-800/80 transition-colors text-left" data-base="HEX">
+              <span class="font-bold text-slate-500 dark:text-slate-400 w-10">HEX</span>
+              <span id="prog-val-hex" class="text-right truncate font-semibold text-slate-900 dark:text-slate-100">0</span>
+            </button>
+            
+            <button class="base-row-btn flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-brand-50/80 dark:bg-brand-950/50 border border-brand-200/80 dark:border-brand-800/60 text-left" data-base="DEC">
+              <span class="font-bold text-brand-600 dark:text-brand-400 w-10">DEC</span>
+              <span id="prog-val-dec" class="text-right truncate font-bold text-brand-700 dark:text-brand-300">0</span>
+            </button>
+
+            <button class="base-row-btn flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-800/80 transition-colors text-left" data-base="OCT">
+              <span class="font-bold text-slate-500 dark:text-slate-400 w-10">OCT</span>
+              <span id="prog-val-oct" class="text-right truncate font-semibold text-slate-900 dark:text-slate-100">0</span>
+            </button>
+
+            <button class="base-row-btn flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-800/80 transition-colors text-left" data-base="BIN">
+              <span class="font-bold text-slate-500 dark:text-slate-400 w-10">BIN</span>
+              <span id="prog-val-bin" class="text-right truncate font-semibold text-slate-900 dark:text-slate-100 text-[11px]">0</span>
+            </button>
+
+          </div>
+
+          <!-- Programmer Configuration Bar: Word Size & Signed/Unsigned -->
+          <div class="flex items-center justify-between px-1 text-xs font-semibold">
+            <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+              <button class="word-size-btn px-2 py-1 rounded-lg text-slate-900 dark:text-white bg-white dark:bg-slate-700 shadow-sm" data-size="64">QWORD (64)</button>
+              <button class="word-size-btn px-2 py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white" data-size="32">DWORD (32)</button>
+              <button class="word-size-btn px-2 py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white" data-size="16">WORD (16)</button>
+              <button class="word-size-btn px-2 py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white" data-size="8">BYTE (8)</button>
+            </div>
+
+            <button id="prog-signed-toggle" class="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+              Signed: <span id="prog-signed-label" class="text-brand-600 dark:text-brand-400 font-bold">2's Comp</span>
+            </button>
+          </div>
+
+          <!-- 64-Bit Interactive Matrix Visualizer -->
+          <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-200 dark:border-slate-800">
+            <div class="flex items-center justify-between text-[10px] font-mono text-slate-400 mb-2">
+              <span>Interactive Bitfield (Click to toggle bit)</span>
+              <span id="active-bit-count">0 bits set</span>
+            </div>
+            
+            <div id="bit-matrix" class="grid grid-cols-16 gap-1 font-mono text-[10px]" style="display: grid; grid-template-columns: repeat(16, minmax(0, 1fr));">
+              <!-- Dynamically populated 64 interactive bits -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Scientific Mode Configuration Ribbon (DEG/RAD/GRAD & 2nd Shift) -->
+        <div id="scientific-ribbon" class="hidden mb-3 flex items-center justify-between gap-2">
+          
+          <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+            <button class="angle-mode-btn px-2.5 py-1 rounded-lg text-slate-900 dark:text-white bg-white dark:bg-slate-700 shadow-sm" data-angle="DEG">DEG</button>
+            <button class="angle-mode-btn px-2.5 py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white" data-angle="RAD">RAD</button>
+            <button class="angle-mode-btn px-2.5 py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white" data-angle="GRAD">GRAD</button>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button id="sci-2nd-toggle" class="px-3 py-1 rounded-xl text-xs font-bold transition-all bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700" title="Toggle Inverse / Secondary Functions">
+              2nd
+            </button>
+            <button id="sci-hyp-toggle" class="px-3 py-1 rounded-xl text-xs font-bold transition-all bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700" title="Hyperbolic Functions">
+              hyp
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Keypad Grids -->
+        <div id="keypad-container" class="space-y-2">
+          
+          <!-- Memory Function Toolbar Row -->
+          <div class="grid grid-cols-5 gap-1.5 text-xs font-bold font-mono pb-1 border-b border-slate-100 dark:border-slate-800/80 mb-2">
+            <button class="calc-btn py-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" data-action="mc" title="Memory Clear">MC</button>
+            <button class="calc-btn py-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" data-action="mr" title="Memory Recall">MR</button>
+            <button class="calc-btn py-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" data-action="m-plus" title="Memory Add">M+</button>
+            <button class="calc-btn py-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" data-action="m-minus" title="Memory Subtract">M-</button>
+            <button class="calc-btn py-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" data-action="ms" title="Memory Store">MS</button>
+          </div>
+
+          <!-- 1. STANDARD KEYPAD -->
+          <div id="keypad-standard" class="grid grid-cols-4 gap-2 text-sm sm:text-base font-semibold">
+            <!-- Row 1 -->
+            <button class="calc-btn py-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors" data-action="clear" data-key="Escape">AC</button>
+            <button class="calc-btn py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="negate">±</button>
+            <button class="calc-btn py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="percent" data-key="%">%</button>
+            <button class="calc-btn py-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-brand-600 dark:text-brand-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-bold transition-colors" data-action="op" data-val="/" data-key="/">÷</button>
+
+            <!-- Row 2 -->
+            <button class="calc-btn py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs sm:text-sm transition-colors" data-action="fn" data-fn="1/x">1/x</button>
+            <button class="calc-btn py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs sm:text-sm transition-colors" data-action="fn" data-fn="sqr">x²</button>
+            <button class="calc-btn py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs sm:text-sm transition-colors" data-action="fn" data-fn="sqrt">√x</button>
+            <button class="calc-btn py-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-brand-600 dark:text-brand-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-bold transition-colors" data-action="op" data-val="*" data-key="*">×</button>
+
+            <!-- Row 3 -->
+            <button class="calc-btn py-3.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-lg" data-action="num" data-val="7" data-key="7">7</button>
+            <button class="calc-btn py-3.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-lg" data-action="num" data-val="8" data-key="8">8</button>
+            <button class="calc-btn py-3.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-lg" data-action="num" data-val="9" data-key="9">9</button>
+            <button class="calc-btn py-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-brand-600 dark:text-brand-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-bold transition-colors" data-action="op" data-val="-" data-key="-">−</button>
+
+            <!-- Row 4 -->
+            <button class="calc-btn py-3.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-lg" data-action="num" data-val="4" data-key="4">4</button>
+            <button class="calc-btn py-3.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-lg" data-action="num" data-val="5" data-key="5">5</button>
+            <button class="calc-btn py-3.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-lg" data-action="num" data-val="6" data-key="6">6</button>
+            <button class="calc-btn py-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-brand-600 dark:text-brand-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-bold transition-colors" data-action="op" data-val="+" data-key="+">+</button>
+
+            <!-- Row 5 -->
+            <button class="calc-btn py-3.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-lg" data-action="num" data-val="1" data-key="1">1</button>
+            <button class="calc-btn py-3.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-lg" data-action="num" data-val="2" data-key="2">2</button>
+            <button class="calc-btn py-3.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-lg" data-action="num" data-val="3" data-key="3">3</button>
+            <button class="calc-btn row-span-2 py-3.5 rounded-2xl bg-brand-600 dark:bg-brand-500 text-white font-bold hover:bg-brand-700 dark:hover:bg-brand-600 shadow-md shadow-brand-500/25 transition-all text-xl flex items-center justify-center" data-action="equals" data-key="Enter">=</button>
+
+            <!-- Row 6 -->
+            <button class="calc-btn col-span-2 py-3.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-lg" data-action="num" data-val="0" data-key="0">0</button>
+            <button class="calc-btn py-3.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-lg font-bold" data-action="decimal" data-key=".">.</button>
+          </div>
+
+          <!-- 2. SCIENTIFIC KEYPAD -->
+          <div id="keypad-scientific" class="hidden grid grid-cols-5 sm:grid-cols-6 gap-2 text-xs sm:text-sm font-semibold">
+            <!-- Row 1: Advanced Functions & Constants -->
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="const" data-val="pi" title="Pi (3.14159...)">π</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="const" data-val="e" title="Euler's e (2.71828...)">e</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="const" data-val="phi" title="Golden Ratio phi (1.61803...)">φ</button>
+            <button class="calc-btn py-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors" data-action="clear" data-key="Escape">AC</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="paren" data-val="(">(</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="paren" data-val=")">)</button>
+
+            <!-- Row 2: Trig Functions -->
+            <button id="btn-trig-sin" class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="fn" data-fn="sin" data-key="s">sin</button>
+            <button id="btn-trig-cos" class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="fn" data-fn="cos" data-key="c">cos</button>
+            <button id="btn-trig-tan" class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="fn" data-fn="tan" data-key="t">tan</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="fn" data-fn="fact" data-key="!">n!</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="fn" data-fn="abs">|x|</button>
+            <button class="calc-btn py-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-brand-600 dark:text-brand-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-bold transition-colors" data-action="op" data-val="/" data-key="/">÷</button>
+
+            <!-- Row 3: Log & Powers -->
+            <button id="btn-sci-ln" class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="fn" data-fn="ln" data-key="l">ln</button>
+            <button id="btn-sci-log" class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="fn" data-fn="log10" data-key="g">log₁₀</button>
+            <button class="calc-btn py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-base" data-action="num" data-val="7" data-key="7">7</button>
+            <button class="calc-btn py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-base" data-action="num" data-val="8" data-key="8">8</button>
+            <button class="calc-btn py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-base" data-action="num" data-val="9" data-key="9">9</button>
+            <button class="calc-btn py-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-brand-600 dark:text-brand-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-bold transition-colors" data-action="op" data-val="*" data-key="*">×</button>
+
+            <!-- Row 4: Powers & Roots -->
+            <button id="btn-sci-pow" class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="op" data-val="^" data-key="^">yˣ</button>
+            <button id="btn-sci-root" class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="fn" data-fn="sqrt" data-key="r">√x</button>
+            <button class="calc-btn py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-base" data-action="num" data-val="4" data-key="4">4</button>
+            <button class="calc-btn py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-base" data-action="num" data-val="5" data-key="5">5</button>
+            <button class="calc-btn py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-base" data-action="num" data-val="6" data-key="6">6</button>
+            <button class="calc-btn py-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-brand-600 dark:text-brand-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-bold transition-colors" data-action="op" data-val="-" data-key="-">−</button>
+
+            <!-- Row 5: Square, Modulo -->
+            <button id="btn-sci-sqr" class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="fn" data-fn="sqr">x²</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="op" data-val="mod">mod</button>
+            <button class="calc-btn py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-base" data-action="num" data-val="1" data-key="1">1</button>
+            <button class="calc-btn py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-base" data-action="num" data-val="2" data-key="2">2</button>
+            <button class="calc-btn py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-base" data-action="num" data-val="3" data-key="3">3</button>
+            <button class="calc-btn py-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-brand-600 dark:text-brand-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-bold transition-colors" data-action="op" data-val="+" data-key="+">+</button>
+
+            <!-- Row 6: Reciprocal, Negate, 0, Decimal, Equals -->
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="fn" data-fn="1/x">1/x</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="negate">±</button>
+            <button class="calc-btn py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-base" data-action="num" data-val="0" data-key="0">0</button>
+            <button class="calc-btn py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors text-base font-bold" data-action="decimal" data-key=".">.</button>
+            <button class="calc-btn col-span-2 py-3 rounded-2xl bg-brand-600 dark:bg-brand-500 text-white font-bold hover:bg-brand-700 dark:hover:bg-brand-600 shadow-md shadow-brand-500/25 transition-all text-lg flex items-center justify-center" data-action="equals" data-key="Enter">=</button>
+          </div>
+
+          <!-- 3. PROGRAMMER KEYPAD -->
+          <div id="keypad-programmer" class="hidden grid grid-cols-5 sm:grid-cols-6 gap-2 text-xs sm:text-sm font-semibold">
+            <!-- Row 1: Bitwise Logic -->
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors font-mono" data-action="bit-op" data-op="AND">AND</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors font-mono" data-action="bit-op" data-op="OR">OR</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors font-mono" data-action="bit-op" data-op="XOR">XOR</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors font-mono" data-action="bit-op" data-op="NOT">NOT</button>
+            <button class="calc-btn py-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors" data-action="clear" data-key="Escape">AC</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="backspace">⌫</button>
+
+            <!-- Row 2: Secondary Bitwise & Shifts -->
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors font-mono" data-action="bit-op" data-op="NAND">NAND</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors font-mono" data-action="bit-op" data-op="NOR">NOR</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors font-mono" data-action="bit-op" data-op="LSH" title="Left Shift (&lt;&lt;)">LSH</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors font-mono" data-action="bit-op" data-op="RSH" title="Right Shift (&gt;&gt;)">RSH</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors font-mono" data-action="paren" data-val="(">(</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors font-mono" data-action="paren" data-val=")">)</button>
+
+            <!-- Row 3: Hex A, B + 7 8 9 + op -->
+            <button class="calc-btn hex-key py-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/70 font-mono font-bold transition-colors" data-action="num" data-val="A" data-key="a">A</button>
+            <button class="calc-btn hex-key py-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/70 font-mono font-bold transition-colors" data-action="num" data-val="B" data-key="b">B</button>
+            <button class="calc-btn num-key py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors font-mono text-base" data-action="num" data-val="7" data-key="7">7</button>
+            <button class="calc-btn num-key py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors font-mono text-base" data-action="num" data-val="8" data-key="8">8</button>
+            <button class="calc-btn num-key py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors font-mono text-base" data-action="num" data-val="9" data-key="9">9</button>
+            <button class="calc-btn py-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-brand-600 dark:text-brand-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-bold transition-colors" data-action="op" data-val="/" data-key="/">÷</button>
+
+            <!-- Row 4: Hex C, D + 4 5 6 + op -->
+            <button class="calc-btn hex-key py-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/70 font-mono font-bold transition-colors" data-action="num" data-val="C" data-key="c">C</button>
+            <button class="calc-btn hex-key py-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/70 font-mono font-bold transition-colors" data-action="num" data-val="D" data-key="d">D</button>
+            <button class="calc-btn num-key py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors font-mono text-base" data-action="num" data-val="4" data-key="4">4</button>
+            <button class="calc-btn num-key py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors font-mono text-base" data-action="num" data-val="5" data-key="5">5</button>
+            <button class="calc-btn num-key py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors font-mono text-base" data-action="num" data-val="6" data-key="6">6</button>
+            <button class="calc-btn py-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-brand-600 dark:text-brand-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-bold transition-colors" data-action="op" data-val="*" data-key="*">×</button>
+
+            <!-- Row 5: Hex E, F + 1 2 3 + op -->
+            <button class="calc-btn hex-key py-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/70 font-mono font-bold transition-colors" data-action="num" data-val="E" data-key="e">E</button>
+            <button class="calc-btn hex-key py-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/70 font-mono font-bold transition-colors" data-action="num" data-val="F" data-key="f">F</button>
+            <button class="calc-btn num-key py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors font-mono text-base" data-action="num" data-val="1" data-key="1">1</button>
+            <button class="calc-btn num-key py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors font-mono text-base" data-action="num" data-val="2" data-key="2">2</button>
+            <button class="calc-btn num-key py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors font-mono text-base" data-action="num" data-val="3" data-key="3">3</button>
+            <button class="calc-btn py-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-brand-600 dark:text-brand-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-bold transition-colors" data-action="op" data-val="-" data-key="-">−</button>
+
+            <!-- Row 6: Negate, Mod, 0, Equals -->
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-action="negate">±</button>
+            <button class="calc-btn py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors font-mono" data-action="op" data-val="mod">mod</button>
+            <button class="calc-btn num-key col-span-2 py-3 rounded-2xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors font-mono text-base" data-action="num" data-val="0" data-key="0">0</button>
+            <button class="calc-btn col-span-2 py-3 rounded-2xl bg-brand-600 dark:bg-brand-500 text-white font-bold hover:bg-brand-700 dark:hover:bg-brand-600 shadow-md shadow-brand-500/25 transition-all text-lg flex items-center justify-center" data-action="equals" data-key="Enter">=</button>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- GRAPHING CALCULATOR WORKSPACE -->
+      <div id="graphing-card" class="hidden w-full max-w-5xl transition-all duration-300 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xl shadow-slate-200/50 dark:shadow-none space-y-4">
+        
+        <!-- Graphing Header & Status Controls -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 text-xs text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800/60">
+          <div class="flex items-center gap-2">
+            <span class="font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+              <i class="fa-solid fa-chart-line text-brand-600 dark:text-brand-400"></i>
+              2D Graphing Engine
+            </span>
+            <span id="graph-bounds-summary" class="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              X: [-10, 10] · Y: [-10, 10]
+            </span>
+          </div>
+
+          <!-- Trace Point Readout HUD -->
+          <div id="graph-trace-hud" class="flex items-center gap-2 font-mono text-xs font-semibold px-2.5 py-1 rounded-xl bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
+            <span class="text-slate-400">Trace:</span>
+            <span id="graph-trace-coords">Hover canvas to probe</span>
+          </div>
+
+          <!-- Zoom & View Tools -->
+          <div class="flex items-center gap-1.5">
+            <button id="graph-zoom-in-btn" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-colors font-bold text-sm" title="Zoom In (+)">
+              <i class="fa-solid fa-plus text-xs"></i>
+            </button>
+            <button id="graph-zoom-out-btn" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-colors font-bold text-sm" title="Zoom Out (-)">
+              <i class="fa-solid fa-minus text-xs"></i>
+            </button>
+            <button id="graph-aspect-square-btn" class="px-2.5 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-colors font-mono font-semibold text-xs" title="Square 1:1 Aspect Ratio">
+              1:1
+            </button>
+            <button id="graph-reset-view-btn" class="px-2.5 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center gap-1 transition-colors font-medium text-xs" title="Reset View Bounds (Standard [-10, 10])">
+              <i class="fa-solid fa-rotate-left text-[11px]"></i>
+              <span>Reset</span>
+            </button>
+            <button id="graph-bounds-modal-btn" class="px-3 h-8 rounded-lg bg-brand-600 hover:bg-brand-700 text-white flex items-center gap-1.5 transition-colors font-semibold text-xs shadow-xs" title="Adjust View Bounds">
+              <i class="fa-solid fa-sliders text-xs"></i>
+              <span>Bounds</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-display">
+          <canvas id="graph-canvas" class="w-full h-[400px] sm:h-[480px] cursor-crosshair touch-none block"></canvas>
+          
+          <!-- Subtle navigation hint banner inside canvas bottom -->
+          <div class="absolute bottom-2 left-3 pointer-events-none text-[10px] font-mono text-slate-400/80 bg-slate-900/60 backdrop-blur-xs px-2 py-0.5 rounded border border-slate-700/50">
+            <i class="fa-regular fa-hand-pointer mr-1"></i> Drag to Pan · Scroll to Zoom · Hover to Trace points
+          </div>
+        </div>
+
+        <!-- Function Equation Manager & Preset Chips -->
+        <div class="space-y-3 pt-2">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Functions to Plot (<span id="graph-active-count">1</span> active)
+            </h4>
+            <button id="graph-add-func-btn" class="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1">
+              <i class="fa-solid fa-plus text-xs"></i> Add Function
+            </button>
+          </div>
+
+          <!-- Function list container (dynamically managed) -->
+          <div id="graph-functions-list" class="space-y-2">
+            <!-- Populated via JS -->
+          </div>
+
+          <!-- Quick Curve Presets -->
+          <div class="pt-2 border-t border-slate-100 dark:border-slate-800/60">
+            <div class="flex items-center gap-1.5 text-xs text-slate-400 mb-1.5">
+              <i class="fa-solid fa-wand-magic-sparkles text-[11px]"></i>
+              <span>Quick Mathematical Curves:</span>
+            </div>
+            <div class="flex flex-wrap gap-1.5 text-xs font-mono">
+              <button class="graph-preset-chip px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-950/60 dark:hover:text-brand-400 border border-slate-200 dark:border-slate-700 transition-colors" data-expr="sin(x)">sin(x)</button>
+              <button class="graph-preset-chip px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-950/60 dark:hover:text-brand-400 border border-slate-200 dark:border-slate-700 transition-colors" data-expr="cos(x)">cos(x)</button>
+              <button class="graph-preset-chip px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-950/60 dark:hover:text-brand-400 border border-slate-200 dark:border-slate-700 transition-colors" data-expr="x^2 - 4">x² - 4</button>
+              <button class="graph-preset-chip px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-950/60 dark:hover:text-brand-400 border border-slate-200 dark:border-slate-700 transition-colors" data-expr="x^3 - 3*x">x³ - 3x</button>
+              <button class="graph-preset-chip px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-950/60 dark:hover:text-brand-400 border border-slate-200 dark:border-slate-700 transition-colors" data-expr="sqrt(abs(x))">√|x|</button>
+              <button class="graph-preset-chip px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-950/60 dark:hover:text-brand-400 border border-slate-200 dark:border-slate-700 transition-colors" data-expr="1/x">1/x</button>
+              <button class="graph-preset-chip px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-950/60 dark:hover:text-brand-400 border border-slate-200 dark:border-slate-700 transition-colors" data-expr="exp(-x^2 / 2)">Gaussian (e^-x²)</button>
+              <button class="graph-preset-chip px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-950/60 dark:hover:text-brand-400 border border-slate-200 dark:border-slate-700 transition-colors" data-expr="tan(x)">tan(x)</button>
+              <button class="graph-preset-chip px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-950/60 dark:hover:text-brand-400 border border-slate-200 dark:border-slate-700 transition-colors" data-expr="abs(x)">|x|</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- Responsive Footer -->
+    <footer class="border-t border-slate-200 dark:border-slate-800/80 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm text-xs text-slate-500 dark:text-slate-400 py-3 px-4 sm:px-6">
+      <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+        
+        <!-- Status Badges -->
+        <div class="flex items-center gap-3">
+          <span class="flex items-center gap-1.5">
+            <span class="text-slate-400">Angle:</span>
+            <span id="footer-angle-mode" class="font-mono font-semibold text-slate-700 dark:text-slate-300 cursor-pointer hover:text-brand-600">DEG</span>
+          </span>
+          <span class="text-slate-300 dark:text-slate-700">·</span>
+          <span class="flex items-center gap-1.5">
+            <span class="text-slate-400">Base:</span>
+            <span id="footer-base-mode" class="font-mono font-semibold text-slate-700 dark:text-slate-300 cursor-pointer hover:text-brand-600">DEC</span>
+          </span>
+          <span class="text-slate-300 dark:text-slate-700">·</span>
+          <span class="flex items-center gap-1.5">
+            <span class="text-slate-400">Precision:</span>
+            <span class="font-mono text-slate-700 dark:text-slate-300">64-bit IEEE/BigInt</span>
+          </span>
+        </div>
+
+        <!-- Links and Information -->
+        <div class="flex items-center gap-4">
+          <button id="footer-shortcuts-btn" class="hover:text-slate-900 dark:hover:text-white transition-colors">Keyboard Shortcuts</button>
+          <span class="text-slate-300 dark:text-slate-700">·</span>
+          <button id="footer-privacy-btn" class="hover:text-slate-900 dark:hover:text-white transition-colors">Privacy Notice</button>
+          <span class="text-slate-300 dark:text-slate-700">·</span>
+          <span class="font-mono text-slate-400">Mike Calc v2.4</span>
+        </div>
+
+      </div>
+    </footer>
+
+    <!-- Side Collapsible Drawer: History & Memory -->
+    <div id="drawer-backdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 hidden transition-opacity duration-200"></div>
+    <aside id="history-drawer" class="fixed top-0 right-0 h-full w-full sm:w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 z-50 transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col shadow-2xl">
+      
+      <!-- Drawer Header -->
+      <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        <!-- Tabs -->
+        <div class="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-semibold">
+          <button id="drawer-tab-history" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition-all">
+            History
+          </button>
+          <button id="drawer-tab-memory" class="px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all">
+            Memory
+          </button>
+        </div>
+
+        <!-- Close Drawer Button -->
+        <button id="drawer-close-btn" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center justify-center transition-colors" aria-label="Close drawer">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Drawer Content Panels -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-3">
+        
+        <!-- Panel 1: History Logs -->
+        <div id="drawer-panel-history" class="space-y-3">
+          <div class="flex items-center justify-between text-xs pb-2 border-b border-slate-100 dark:border-slate-800 text-slate-500">
+            <span id="history-count-text">0 calculations recorded</span>
+            <div class="flex items-center gap-1.5">
+              <button id="export-history-json" class="hover:text-brand-600 dark:hover:text-brand-400 font-medium px-2 py-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Export as JSON">
+                <i class="fa-solid fa-file-code text-[11px] mr-1"></i>JSON
+              </button>
+              <button id="export-history-csv" class="hover:text-brand-600 dark:hover:text-brand-400 font-medium px-2 py-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Export as CSV">
+                <i class="fa-solid fa-file-csv text-[11px] mr-1"></i>CSV
+              </button>
+              <button id="clear-history-btn" class="hover:text-rose-600 dark:hover:text-rose-400 font-medium px-2 py-0.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors" title="Clear All History">
+                <i class="fa-regular fa-trash-can text-[11px] mr-1"></i>Clear
+              </button>
+            </div>
+          </div>
+
+          <div id="history-items-list" class="space-y-2">
+            <!-- Populated via JavaScript -->
+            <div id="history-empty-state" class="py-12 text-center text-slate-400 dark:text-slate-500 text-xs">
+              <i class="fa-regular fa-clock text-2xl mb-2 opacity-50 block"></i>
+              <span>No calculation history yet.<br/>Perform a calculation to see results here.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 2: Memory Registers -->
+        <div id="drawer-panel-memory" class="hidden space-y-3">
+          <div class="flex items-center justify-between text-xs pb-2 border-b border-slate-100 dark:border-slate-800 text-slate-500">
+            <span>Stored Memory Values</span>
+            <button id="clear-all-memory-btn" class="hover:text-rose-600 dark:hover:text-rose-400 font-medium px-2 py-0.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors" title="Clear all stored memory">
+              Clear All Memory
+            </button>
+          </div>
+
+          <div id="memory-items-list" class="space-y-2">
+            <!-- Populated via JavaScript -->
+            <div id="memory-empty-state" class="py-12 text-center text-slate-400 dark:text-slate-500 text-xs">
+              <i class="fa-solid fa-microchip text-2xl mb-2 opacity-50 block"></i>
+              <span>Memory stack is empty.<br/>Use MS or M+ on any number to store it.</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </aside>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <div id="shortcuts-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs hidden">
+      <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-lg w-full p-6 shadow-2xl relative max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-keyboard text-brand-600 dark:text-brand-400 text-lg"></i>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">Keyboard Shortcuts</h3>
+          </div>
+          <button id="close-shortcuts-modal" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center justify-center transition-colors">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="overflow-y-auto py-4 space-y-4 text-xs">
+          <!-- Standard -->
+          <div>
+            <h4 class="font-bold text-slate-400 uppercase tracking-wider text-[11px] mb-2">Standard Keys</h4>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Numbers &amp; Decimal</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">0 - 9, .</kbd>
+              </div>
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Basic Math (+, -, *, /)</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">+ − * /</kbd>
+              </div>
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Calculate Result</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">Enter or =</kbd>
+              </div>
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Delete Digit</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">Backspace</kbd>
+              </div>
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>All Clear</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">Escape</kbd>
+              </div>
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Parentheses</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">( and )</kbd>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scientific -->
+          <div>
+            <h4 class="font-bold text-slate-400 uppercase tracking-wider text-[11px] mb-2">Scientific Keys</h4>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>sin / cos / tan</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">S, C, T</kbd>
+              </div>
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>ln / log10</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">L, G</kbd>
+              </div>
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Square Root (√)</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">R</kbd>
+              </div>
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Factorial (n!)</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">!</kbd>
+              </div>
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Constants (π, e)</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">P, E</kbd>
+              </div>
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Power (yˣ)</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">^</kbd>
+              </div>
+            </div>
+          </div>
+
+          <!-- Programmer -->
+          <div>
+            <h4 class="font-bold text-slate-400 uppercase tracking-wider text-[11px] mb-2">Programmer Keys</h4>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Hex Digits (A-F)</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">A - F</kbd>
+              </div>
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Bitwise AND / OR / XOR</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">&amp;, |, ^</kbd>
+              </div>
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Bitwise NOT (~)</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">~</kbd>
+              </div>
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Left &amp; Right Shifts</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">&lt; and &gt;</kbd>
+              </div>
+            </div>
+          </div>
+
+          <!-- Graphing Controls -->
+          <div>
+            <h4 class="font-bold text-slate-400 uppercase tracking-wider text-[11px] mb-2">Graphing Navigation</h4>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Pan Coordinate Plane</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">Drag Canvas</kbd>
+              </div>
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Zoom In / Out</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">Scroll Wheel</kbd>
+              </div>
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Point &amp; Curve Trace</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">Hover Cursor</kbd>
+              </div>
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Adjust View Window</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">Bounds Dialog</kbd>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Navigation -->
+          <div>
+            <h4 class="font-bold text-slate-400 uppercase tracking-wider text-[11px] mb-2">Navigation</h4>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Toggle History Drawer</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">H</kbd>
+              </div>
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                <span>Cycle Modes (4 modes)</span>
+                <kbd class="px-2 py-0.5 font-mono font-semibold rounded bg-white dark:bg-slate-700 shadow-xs border border-slate-200 dark:border-slate-600">M</kbd>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 dark:border-slate-800 text-right">
+          <button id="close-shortcuts-modal-btn" class="px-4 py-2 rounded-xl bg-brand-600 text-white font-semibold hover:bg-brand-700 transition-colors">
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Privacy Notice Modal -->
+    <div id="privacy-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs hidden">
+      <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 shadow-2xl relative">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-shield-halved text-emerald-500 text-lg"></i>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">Privacy Guarantee</h3>
+          </div>
+          <button id="close-privacy-modal" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center justify-center transition-colors">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="py-4 space-y-3 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+          <p>
+            <strong>100% Client-Side Architecture:</strong> Mike Calc executes entirely within your browser sandboxed JavaScript engine. No calculations, keystrokes, or mathematical expressions are ever sent to an external server.
+          </p>
+          <p>
+            <strong>Local Persistence:</strong> Calculation logs, memory values, and user preferences are saved strictly in your browser's private <code class="font-mono bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">localStorage</code>.
+          </p>
+          <p>
+            <strong>Zero Telemetry:</strong> No analytics, tracking pixels, cookies, or external surveillance trackers exist within this application.
+          </p>
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 dark:border-slate-800 text-right">
+          <button id="close-privacy-modal-btn" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Graphing View Bounds Modal -->
+    <div id="bounds-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs hidden">
+      <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 shadow-2xl relative">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-sliders text-brand-600 dark:text-brand-400 text-lg"></i>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">Adjust View Bounds</h3>
+          </div>
+          <button id="close-bounds-modal" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center justify-center transition-colors">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <form id="bounds-form" class="py-4 space-y-4 text-xs">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-slate-600 dark:text-slate-400 mb-1">X Minimum</label>
+              <input type="number" id="bound-xmin" step="any" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500 text-slate-900 dark:text-white" required />
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-600 dark:text-slate-400 mb-1">X Maximum</label>
+              <input type="number" id="bound-xmax" step="any" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500 text-slate-900 dark:text-white" required />
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-600 dark:text-slate-400 mb-1">Y Minimum</label>
+              <input type="number" id="bound-ymin" step="any" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500 text-slate-900 dark:text-white" required />
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-600 dark:text-slate-400 mb-1">Y Maximum</label>
+              <input type="number" id="bound-ymax" step="any" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500 text-slate-900 dark:text-white" required />
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-400 mb-1.5 uppercase tracking-wider text-[10px]">Preset Windows</label>
+            <div class="grid grid-cols-2 gap-2 font-mono">
+              <button type="button" class="preset-window-btn p-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-left transition-colors" data-xmin="-10" data-xmax="10" data-ymin="-10" data-ymax="10">
+                <span class="font-bold text-slate-900 dark:text-white block">Standard</span>
+                <span class="text-[10px] text-slate-500">[-10, 10] × [-10, 10]</span>
+              </button>
+              <button type="button" class="preset-window-btn p-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-left transition-colors" data-xmin="-6.28" data-xmax="6.28" data-ymin="-2" data-ymax="2">
+                <span class="font-bold text-slate-900 dark:text-white block">Trigonometric</span>
+                <span class="text-[10px] text-slate-500">[-2π, 2π] × [-2, 2]</span>
+              </button>
+              <button type="button" class="preset-window-btn p-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-left transition-colors" data-xmin="0" data-xmax="20" data-ymin="0" data-ymax="20">
+                <span class="font-bold text-slate-900 dark:text-white block">First Quadrant</span>
+                <span class="text-[10px] text-slate-500">[0, 20] × [0, 20]</span>
+              </button>
+              <button type="button" class="preset-window-btn p-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-left transition-colors" data-xmin="-100" data-xmax="100" data-ymin="-100" data-ymax="100">
+                <span class="font-bold text-slate-900 dark:text-white block">Macro Scale</span>
+                <span class="text-[10px] text-slate-500">[-100, 100]</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+            <button type="button" id="cancel-bounds-btn" class="px-4 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              Cancel
+            </button>
+            <button type="submit" class="px-5 py-2 rounded-xl bg-brand-600 text-white font-semibold hover:bg-brand-700 shadow-sm transition-colors">
+              Apply Bounds
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-12 sm:bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Application Architecture & Logic (Vanilla ES6+ JS) -->
+    <script>
+      /**
+       * ApexCalc - Precision Scientific & Programmer Calculator
+       * Single self-contained architecture
+       */
+      (function() {
+        'use strict';
+
+        // --- STORAGE MANAGER ---
+        class StorageManager {
+          constructor() {
+            this.prefix = 'apexcalc_';
+          }
+
+          get(key, fallback = null) {
+            try {
+              const val = localStorage.getItem(this.prefix + key);
+              return val !== null ? JSON.parse(val) : fallback;
+            } catch (e) {
+              console.warn('Storage error:', e);
+              return fallback;
+            }
+          }
+
+          set(key, val) {
+            try {
+              localStorage.setItem(this.prefix + key, JSON.stringify(val));
+            } catch (e) {
+              console.warn('Storage save error:', e);
+            }
+          }
+        }
+
+        // --- MATH ENGINE (PEMDAS / BODMAS) ---
+        class MathEngine {
+          constructor(storage) {
+            this.storage = storage;
+            this.angleMode = this.storage.get('angleMode', 'DEG'); // DEG, RAD, GRAD
+          }
+
+          setAngleMode(mode) {
+            this.angleMode = mode;
+            this.storage.set('angleMode', mode);
+          }
+
+          toRadians(val) {
+            if (this.angleMode === 'DEG') {
+              return (val * Math.PI) / 180;
+            } else if (this.angleMode === 'GRAD') {
+              return (val * Math.PI) / 200;
+            }
+            return val; // RAD
+          }
+
+          fromRadians(val) {
+            if (this.angleMode === 'DEG') {
+              return (val * 180) / Math.PI;
+            } else if (this.angleMode === 'GRAD') {
+              return (val * 200) / Math.PI;
+            }
+            return val; // RAD
+          }
+
+          // Floating-point normalization
+          normalizeFloat(num) {
+            if (typeof num !== 'number') return num;
+            if (isNaN(num)) return 'Invalid Input';
+            if (!isFinite(num)) return 'Cannot divide by 0';
+
+            // Near-zero cleanup
+            if (Math.abs(num) < 1e-13) return 0;
+
+            // Precision round to 12 digits then strip trailing zero artifacts
+            const rounded = parseFloat(num.toPrecision(12));
+            // Check if within floating point roundoff of an integer
+            if (Math.abs(rounded - Math.round(rounded)) < 1e-11) {
+              return Math.round(rounded);
+            }
+            return rounded;
+          }
+
+          factorial(n) {
+            if (n < 0 || !Number.isInteger(n)) return NaN;
+            if (n === 0 || n === 1) return 1;
+            if (n > 170) return Infinity; // Overflow in 64-bit IEEE float
+            let r = 1;
+            for (let i = 2; i <= n; i++) r *= i;
+            return r;
+          }
+
+          // Tokenize string mathematical expression
+          tokenize(expr, base = 'DEC') {
+            const tokens = [];
+            let i = 0;
+            const str = expr.replace(/\s+/g, '');
+
+            while (i < str.length) {
+              const ch = str[i];
+              const remaining = str.slice(i).toLowerCase();
+
+              // Bitwise and named multi-char operators
+              if (remaining.startsWith('nand')) {
+                tokens.push({ type: 'operator', value: 'nand', prec: 2, assoc: 'L' });
+                i += 4;
+                continue;
+              }
+              if (remaining.startsWith('nor')) {
+                tokens.push({ type: 'operator', value: 'nor', prec: 1, assoc: 'L' });
+                i += 3;
+                continue;
+              }
+              if (remaining.startsWith('xor')) {
+                tokens.push({ type: 'operator', value: 'xor', prec: 1.5, assoc: 'L' });
+                i += 3;
+                continue;
+              }
+              if (remaining.startsWith('and')) {
+                tokens.push({ type: 'operator', value: 'and', prec: 2, assoc: 'L' });
+                i += 3;
+                continue;
+              }
+              if (remaining.startsWith('or') && !remaining.startsWith('origin')) {
+                tokens.push({ type: 'operator', value: 'or', prec: 1, assoc: 'L' });
+                i += 2;
+                continue;
+              }
+              if (remaining.startsWith('lsh') || remaining.startsWith('<<')) {
+                tokens.push({ type: 'operator', value: 'lsh', prec: 3, assoc: 'L' });
+                i += remaining.startsWith('lsh') ? 3 : 2;
+                continue;
+              }
+              if (remaining.startsWith('rsh') || remaining.startsWith('>>')) {
+                tokens.push({ type: 'operator', value: 'rsh', prec: 3, assoc: 'L' });
+                i += remaining.startsWith('rsh') ? 3 : 2;
+                continue;
+              }
+              if (remaining.startsWith('mod')) {
+                tokens.push({ type: 'operator', value: 'mod', prec: 2, assoc: 'L' });
+                i += 3;
+                continue;
+              }
+              if (remaining.startsWith('yroot')) {
+                tokens.push({ type: 'operator', value: 'yroot', prec: 3, assoc: 'L' });
+                i += 5;
+                continue;
+              }
+
+              // Programmer Base specific numbers
+              if (base === 'HEX' && /[0-9a-fA-F]/.test(ch)) {
+                let hexStr = '';
+                while (i < str.length && /[0-9a-fA-F]/.test(str[i])) {
+                  hexStr += str[i++];
+                }
+                tokens.push({ type: 'number', value: parseInt(hexStr, 16) });
+                continue;
+              } else if (base === 'BIN' && /[01]/.test(ch)) {
+                let binStr = '';
+                while (i < str.length && /[01]/.test(str[i])) {
+                  binStr += str[i++];
+                }
+                tokens.push({ type: 'number', value: parseInt(binStr, 2) });
+                continue;
+              } else if (base === 'OCT' && /[0-7]/.test(ch)) {
+                let octStr = '';
+                while (i < str.length && /[0-7]/.test(str[i])) {
+                  octStr += str[i++];
+                }
+                tokens.push({ type: 'number', value: parseInt(octStr, 8) });
+                continue;
+              }
+
+              // Standard Decimal / Float Number parsing
+              if (/[0-9.]/.test(ch)) {
+                let numStr = '';
+                while (i < str.length && /[0-9.]/.test(str[i])) {
+                  numStr += str[i++];
+                }
+                if (i < str.length && (str[i] === 'e' || str[i] === 'E') && (str[i+1] === '+' || str[i+1] === '-' || /[0-9]/.test(str[i+1]))) {
+                  numStr += str[i++];
+                  if (str[i] === '+' || str[i] === '-') numStr += str[i++];
+                  while (i < str.length && /[0-9]/.test(str[i])) numStr += str[i++];
+                }
+                tokens.push({ type: 'number', value: parseFloat(numStr) });
+                continue;
+              }
+
+              // Word functions or constants (sin, cos, tan, ln, log, pi, e, etc.)
+              if (/[a-zA-Z]/.test(ch)) {
+                let name = '';
+                while (i < str.length && /[a-zA-Z0-9]/.test(str[i])) {
+                  name += str[i++];
+                }
+                const lower = name.toLowerCase();
+                if (lower === 'pi') {
+                  tokens.push({ type: 'number', value: Math.PI });
+                } else if (lower === 'e') {
+                  tokens.push({ type: 'number', value: Math.E });
+                } else if (lower === 'phi') {
+                  tokens.push({ type: 'number', value: (1 + Math.sqrt(5)) / 2 });
+                } else {
+                  tokens.push({ type: 'function', value: lower });
+                }
+                continue;
+              }
+
+              // Parentheses
+              if (ch === '(') {
+                tokens.push({ type: 'lparen', value: '(' });
+                i++;
+                continue;
+              }
+              if (ch === ')') {
+                tokens.push({ type: 'rparen', value: ')' });
+                i++;
+                continue;
+              }
+
+              // Postfix operators: !
+              if (ch === '!') {
+                tokens.push({ type: 'postfix', value: '!' });
+                i++;
+                continue;
+              }
+
+              // Percentage: %
+              if (ch === '%') {
+                tokens.push({ type: 'postfix', value: '%' });
+                i++;
+                continue;
+              }
+
+              // Binary arithmetic operators
+              if ('+-*/×÷^'.includes(ch)) {
+                let op = ch;
+                if (op === '×') op = '*';
+                if (op === '÷') op = '/';
+
+                // Distinguish unary minus from binary subtraction
+                const prev = tokens[tokens.length - 1];
+                if (op === '-' && (!prev || prev.type === 'operator' || prev.type === 'lparen')) {
+                  tokens.push({ type: 'unary_op', value: 'neg', prec: 4, assoc: 'R' });
+                  i++;
+                  continue;
+                }
+
+                let prec = 1;
+                let assoc = 'L';
+                if (op === '*' || op === '/') prec = 2;
+                if (op === '^') { prec = 3; assoc = 'R'; }
+
+                tokens.push({ type: 'operator', value: op, prec, assoc });
+                i++;
+                continue;
+              }
+
+              // Unknown character
+              i++;
+            }
+
+            return tokens;
+          }
+
+          // Shunting-Yard Algorithm to produce Postfix (RPN)
+          shuntingYard(tokens) {
+            const output = [];
+            const opStack = [];
+
+            for (const token of tokens) {
+              if (token.type === 'number') {
+                output.push(token);
+              } else if (token.type === 'function') {
+                opStack.push(token);
+              } else if (token.type === 'postfix') {
+                output.push(token);
+              } else if (token.type === 'unary_op') {
+                opStack.push(token);
+              } else if (token.type === 'operator') {
+                while (opStack.length > 0) {
+                  const top = opStack[opStack.length - 1];
+                  if (top.type === 'operator' || top.type === 'unary_op') {
+                    if ((token.assoc === 'L' && token.prec <= top.prec) ||
+                        (token.assoc === 'R' && token.prec < top.prec)) {
+                      output.push(opStack.pop());
+                      continue;
+                    }
+                  }
+                  break;
+                }
+                opStack.push(token);
+              } else if (token.type === 'lparen') {
+                opStack.push(token);
+              } else if (token.type === 'rparen') {
+                while (opStack.length > 0 && opStack[opStack.length - 1].type !== 'lparen') {
+                  output.push(opStack.pop());
+                }
+                if (opStack.length === 0) throw new Error('Mismatched parentheses');
+                opStack.pop(); // Remove lparen
+                if (opStack.length > 0 && opStack[opStack.length - 1].type === 'function') {
+                  output.push(opStack.pop());
+                }
+              }
+            }
+
+            while (opStack.length > 0) {
+              const top = opStack.pop();
+              if (top.type === 'lparen' || top.type === 'rparen') {
+                throw new Error('Mismatched parentheses');
+              }
+              output.push(top);
+            }
+
+            return output;
+          }
+
+          // Evaluate RPN
+          evaluatePostfix(postfix) {
+            const stack = [];
+
+            for (const token of postfix) {
+              if (token.type === 'number') {
+                stack.push(token.value);
+              } else if (token.type === 'postfix') {
+                if (stack.length < 1) throw new Error('Syntax error');
+                const val = stack.pop();
+                if (token.value === '!') {
+                  const res = this.factorial(val);
+                  if (isNaN(res)) throw new Error('Domain Error');
+                  stack.push(res);
+                } else if (token.value === '%') {
+                  stack.push(val / 100);
+                }
+              } else if (token.type === 'unary_op') {
+                if (stack.length < 1) throw new Error('Syntax error');
+                const val = stack.pop();
+                if (token.value === 'neg') stack.push(-val);
+              } else if (token.type === 'function') {
+                if (stack.length < 1) throw new Error('Syntax error');
+                const a = stack.pop();
+                let res;
+                switch (token.value) {
+                  case 'sin':
+                    res = Math.sin(this.toRadians(a));
+                    if (this.angleMode === 'DEG' && a % 180 === 0) res = 0;
+                    break;
+                  case 'cos':
+                    res = Math.cos(this.toRadians(a));
+                    if (this.angleMode === 'DEG' && (a - 90) % 180 === 0) res = 0;
+                    break;
+                  case 'tan':
+                    if (this.angleMode === 'DEG' && (a - 90) % 180 === 0) throw new Error('Undefined');
+                    res = Math.tan(this.toRadians(a));
+                    break;
+                  case 'asin':
+                    if (a < -1 || a > 1) throw new Error('Domain Error');
+                    res = this.fromRadians(Math.asin(a));
+                    break;
+                  case 'acos':
+                    if (a < -1 || a > 1) throw new Error('Domain Error');
+                    res = this.fromRadians(Math.acos(a));
+                    break;
+                  case 'atan':
+                    res = this.fromRadians(Math.atan(a));
+                    break;
+                  case 'sinh': res = Math.sinh(a); break;
+                  case 'cosh': res = Math.cosh(a); break;
+                  case 'tanh': res = Math.tanh(a); break;
+                  case 'asinh': res = Math.asinh(a); break;
+                  case 'acosh':
+                    if (a < 1) throw new Error('Domain Error');
+                    res = Math.acosh(a);
+                    break;
+                  case 'atanh':
+                    if (a <= -1 || a >= 1) throw new Error('Domain Error');
+                    res = Math.atanh(a);
+                    break;
+                  case 'ln':
+                    if (a <= 0) throw new Error('Domain Error');
+                    res = Math.log(a);
+                    break;
+                  case 'log':
+                  case 'log10':
+                    if (a <= 0) throw new Error('Domain Error');
+                    res = Math.log10(a);
+                    break;
+                  case 'log2':
+                    if (a <= 0) throw new Error('Domain Error');
+                    res = Math.log2(a);
+                    break;
+                  case 'sqrt':
+                    if (a < 0) throw new Error('Invalid Input');
+                    res = Math.sqrt(a);
+                    break;
+                  case 'cbrt':
+                    res = Math.cbrt(a);
+                    break;
+                  case 'abs':
+                    res = Math.abs(a);
+                    break;
+                  case 'exp':
+                    res = Math.exp(a);
+                    break;
+                  default:
+                    throw new Error('Unknown function ' + token.value);
+                }
+                stack.push(this.normalizeFloat(res));
+              } else if (token.type === 'operator') {
+                if (stack.length < 2) throw new Error('Syntax error');
+                const b = stack.pop();
+                const a = stack.pop();
+                let res;
+                switch (token.value) {
+                  case '+': res = a + b; break;
+                  case '-': res = a - b; break;
+                  case '*': res = a * b; break;
+                  case '/':
+                    if (b === 0) throw new Error('Cannot divide by 0');
+                    res = a / b;
+                    break;
+                  case 'mod':
+                    if (b === 0) throw new Error('Cannot divide by 0');
+                    res = a % b;
+                    break;
+                  case '^':
+                    res = Math.pow(a, b);
+                    break;
+                  case 'yroot':
+                    if (b === 0) throw new Error('Cannot divide by 0');
+                    if (a < 0 && b % 2 === 0) throw new Error('Invalid Input');
+                    res = a < 0 ? -Math.pow(-a, 1 / b) : Math.pow(a, 1 / b);
+                    break;
+                  case 'and': {
+                    const bigA = BigInt(Math.trunc(a));
+                    const bigB = BigInt(Math.trunc(b));
+                    res = Number(bigA & bigB);
+                    break;
+                  }
+                  case 'or': {
+                    const bigA = BigInt(Math.trunc(a));
+                    const bigB = BigInt(Math.trunc(b));
+                    res = Number(bigA | bigB);
+                    break;
+                  }
+                  case 'xor': {
+                    const bigA = BigInt(Math.trunc(a));
+                    const bigB = BigInt(Math.trunc(b));
+                    res = Number(bigA ^ bigB);
+                    break;
+                  }
+                  case 'nand': {
+                    const bigA = BigInt(Math.trunc(a));
+                    const bigB = BigInt(Math.trunc(b));
+                    res = Number(~(bigA & bigB));
+                    break;
+                  }
+                  case 'nor': {
+                    const bigA = BigInt(Math.trunc(a));
+                    const bigB = BigInt(Math.trunc(b));
+                    res = Number(~(bigA | bigB));
+                    break;
+                  }
+                  case 'lsh': {
+                    const bigA = BigInt(Math.trunc(a));
+                    const bigB = BigInt(Math.trunc(b) & 63);
+                    res = Number(bigA << bigB);
+                    break;
+                  }
+                  case 'rsh': {
+                    const bigA = BigInt(Math.trunc(a));
+                    const bigB = BigInt(Math.trunc(b) & 63);
+                    res = Number(bigA >> bigB);
+                    break;
+                  }
+                  default:
+                    throw new Error('Unknown operator');
+                }
+                stack.push(this.normalizeFloat(res));
+              }
+            }
+
+            if (stack.length !== 1) throw new Error('Syntax error');
+            return stack[0];
+          }
+
+          evaluate(expression, base = 'DEC') {
+            if (!expression || !expression.trim()) return 0;
+            const tokens = this.tokenize(expression, base);
+            if (tokens.length === 0) return 0;
+            const postfix = this.shuntingYard(tokens);
+            const val = this.evaluatePostfix(postfix);
+            return this.normalizeFloat(val);
+          }
+        }
+
+        // --- PROGRAMMER BITWISE ENGINE (BigInt 64/32/16/8-Bit) ---
+        class ProgrammerEngine {
+          constructor(storage) {
+            this.storage = storage;
+            this.base = this.storage.get('programmerBase', 'DEC'); // HEX, DEC, OCT, BIN
+            this.wordSize = this.storage.get('wordSize', 64); // 64, 32, 16, 8
+            this.isSigned = this.storage.get('isSigned', true);
+            this.currentValue = 0n;
+            this.pendingOp = null;
+            this.storedValue = 0n;
+          }
+
+          setBase(base) {
+            this.base = base;
+            this.storage.set('programmerBase', base);
+          }
+
+          setWordSize(bits) {
+            this.wordSize = Number(bits);
+            this.storage.set('wordSize', this.wordSize);
+            this.maskValue();
+          }
+
+          toggleSigned() {
+            this.isSigned = !this.isSigned;
+            this.storage.set('isSigned', this.isSigned);
+          }
+
+          getMask() {
+            switch (this.wordSize) {
+              case 8: return 0xFFn;
+              case 16: return 0xFFFFn;
+              case 32: return 0xFFFFFFFFn;
+              default: return 0xFFFFFFFFFFFFFFFFn;
+            }
+          }
+
+          maskValue() {
+            const mask = this.getMask();
+            this.currentValue = this.currentValue & mask;
+          }
+
+          setValue(val) {
+            try {
+              if (typeof val === 'bigint') {
+                this.currentValue = val;
+              } else if (typeof val === 'number') {
+                this.currentValue = BigInt(Math.trunc(val));
+              } else if (typeof val === 'string') {
+                let s = val.trim();
+                if (this.base === 'HEX') this.currentValue = BigInt('0x' + (s || '0'));
+                else if (this.base === 'OCT') this.currentValue = BigInt('0o' + (s || '0'));
+                else if (this.base === 'BIN') this.currentValue = BigInt('0b' + (s || '0'));
+                else this.currentValue = BigInt(s || '0');
+              }
+            } catch (e) {
+              console.warn('Set value error:', e);
+              this.currentValue = 0n;
+            }
+            this.maskValue();
+          }
+
+          toggleBit(bitIndex) {
+            if (bitIndex >= this.wordSize || bitIndex < 0) return;
+            const bit = 1n << BigInt(bitIndex);
+            this.currentValue = this.currentValue ^ bit;
+            this.maskValue();
+          }
+
+          applyBitOp(op, operand) {
+            const a = this.currentValue;
+            const b = operand !== undefined ? operand : a;
+            let result = 0n;
+
+            switch (op) {
+              case 'AND': result = a & b; break;
+              case 'OR': result = a | b; break;
+              case 'XOR': result = a ^ b; break;
+              case 'NOT': result = ~a; break;
+              case 'NAND': result = ~(a & b); break;
+              case 'NOR': result = ~(a | b); break;
+              case 'LSH':
+                const shiftL = Number(b & 63n);
+                result = a << BigInt(shiftL);
+                break;
+              case 'RSH':
+                const shiftR = Number(b & 63n);
+                result = a >> BigInt(shiftR);
+                break;
+              default:
+                result = a;
+            }
+            this.currentValue = result & this.getMask();
+            return this.currentValue;
+          }
+
+          // Return string representations for HEX, DEC, OCT, BIN
+          getAllRepresentations() {
+            const mask = this.getMask();
+            const unsignedVal = this.currentValue & mask;
+
+            // Compute signed decimal representation if signed mode enabled
+            let decStr = unsignedVal.toString(10);
+            const signBit = 1n << BigInt(this.wordSize - 1);
+            if (this.isSigned && (unsignedVal & signBit) !== 0n) {
+              const signedVal = unsignedVal - (1n << BigInt(this.wordSize));
+              decStr = signedVal.toString(10);
+            }
+
+            // HEX representation
+            const hexChars = this.wordSize / 4;
+            const rawHex = unsignedVal.toString(16).toUpperCase().padStart(hexChars, '0');
+            // Format hex with space every 4 chars
+            const formattedHex = rawHex.replace(/(.{4})/g, '$1 ').trim();
+
+            // OCT representation
+            const rawOct = unsignedVal.toString(8);
+
+            // BIN representation
+            const rawBin = unsignedVal.toString(2).padStart(this.wordSize, '0');
+            // Format bin with space every 4 bits
+            const formattedBin = rawBin.replace(/(.{4})/g, '$1 ').trim();
+
+            return {
+              hex: formattedHex,
+              rawHex,
+              dec: decStr,
+              oct: rawOct,
+              bin: formattedBin,
+              rawBin
+            };
+          }
+        }
+
+        // --- 2D GRAPHING ENGINE ---
+        class GraphingEngine {
+          constructor(canvas, onBoundsChange, onTraceChange) {
+            this.canvas = canvas;
+            this.ctx = canvas.getContext('2d');
+            this.onBoundsChange = onBoundsChange;
+            this.onTraceChange = onTraceChange;
+
+            this.bounds = {
+              xMin: -10,
+              xMax: 10,
+              yMin: -10,
+              yMax: 10,
+            };
+
+            this.functions = [
+              { id: 1, expr: 'sin(x)', color: '#6366f1', visible: true, compiled: null },
+              { id: 2, expr: '0.2*x^2 - 4', color: '#10b981', visible: true, compiled: null },
+            ];
+
+            this.tracePoint = null;
+            this.isDragging = false;
+            this.dragStart = { x: 0, y: 0 };
+            this.dragStartBounds = null;
+
+            this.compileAll();
+            this.bindEvents();
+
+            if (window.ResizeObserver) {
+              this.resizeObserver = new ResizeObserver(() => this.render());
+              this.resizeObserver.observe(this.canvas);
+            }
+          }
+
+          compileFunction(expr) {
+            if (!expr || !expr.trim()) return () => NaN;
+
+            try {
+              let s = expr.trim().toLowerCase();
+
+              // Handle replacements for implicit multiplication
+              s = s.replace(/([0-9])([a-z(])/g, '$1*$2');
+              s = s.replace(/x([0-9])/g, 'x*$1');
+              s = s.replace(/x\s*([a-z(])/g, 'x*$1');
+              s = s.replace(/\)\s*([a-z0-9(])/g, ')*$1');
+
+              // Replace power operator ^ with **
+              s = s.replace(/\^/g, '**');
+
+              // Map mathematical functions and constants to Math.*
+              const mathNames = [
+                'sin', 'cos', 'tan', 'asin', 'acos', 'atan',
+                'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh',
+                'sqrt', 'cbrt', 'abs', 'exp', 'floor', 'ceil', 'round'
+              ];
+              mathNames.forEach(fn => {
+                const regex = new RegExp(`\\b${fn}\\s*\\(`, 'g');
+                s = s.replace(regex, `Math.${fn}(`);
+              });
+
+              s = s.replace(/\bln\s*\(/g, 'Math.log(');
+              s = s.replace(/\blog10\s*\(/g, 'Math.log10(');
+              s = s.replace(/\blog\s*\(/g, 'Math.log10(');
+
+              s = s.replace(/\bpi\b/g, 'Math.PI');
+              s = s.replace(/\be\b/g, 'Math.E');
+
+              const fn = new Function('x', 'Math', `
+                try {
+                  const res = ${s};
+                  return (typeof res === 'number' && isFinite(res)) ? res : NaN;
+                } catch(e) {
+                  return NaN;
+                }
+              `);
+
+              return (x) => fn(x, Math);
+            } catch (e) {
+              console.warn('Compile error for:', expr, e);
+              return () => NaN;
+            }
+          }
+
+          compileAll() {
+            this.functions.forEach(f => {
+              f.compiled = this.compileFunction(f.expr);
+            });
+          }
+
+          setFunctionExpr(id, expr) {
+            const f = this.functions.find(item => item.id === id);
+            if (f) {
+              f.expr = expr;
+              f.compiled = this.compileFunction(expr);
+              this.render();
+            }
+          }
+
+          toggleFunctionVisibility(id) {
+            const f = this.functions.find(item => item.id === id);
+            if (f) {
+              f.visible = !f.visible;
+              this.render();
+            }
+          }
+
+          addFunction(expr = '') {
+            const colors = ['#6366f1', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#06b6d4'];
+            const nextId = this.functions.length > 0 ? Math.max(...this.functions.map(f => f.id)) + 1 : 1;
+            const color = colors[(nextId - 1) % colors.length];
+            this.functions.push({
+              id: nextId,
+              expr: expr || '',
+              color,
+              visible: true,
+              compiled: this.compileFunction(expr)
+            });
+            this.render();
+            return nextId;
+          }
+
+          removeFunction(id) {
+            if (this.functions.length <= 1) return;
+            this.functions = this.functions.filter(f => f.id !== id);
+            this.render();
+          }
+
+          calculateGridStep(range, targetTicks = 10) {
+            const rawStep = range / targetTicks;
+            const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+            const residual = rawStep / magnitude;
+
+            let step;
+            if (residual < 1.5) step = 1 * magnitude;
+            else if (residual < 3.5) step = 2 * magnitude;
+            else if (residual < 7.5) step = 5 * magnitude;
+            else step = 10 * magnitude;
+
+            return step;
+          }
+
+          setBounds(xMin, xMax, yMin, yMax) {
+            if (xMax <= xMin || yMax <= yMin) return;
+            this.bounds = { xMin, xMax, yMin, yMax };
+            if (this.onBoundsChange) this.onBoundsChange(this.bounds);
+            this.render();
+          }
+
+          resetView() {
+            this.setBounds(-10, 10, -10, 10);
+          }
+
+          setSquareAspect() {
+            const rect = this.canvas.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return;
+            const aspect = rect.height / rect.width;
+            const xRange = this.bounds.xMax - this.bounds.xMin;
+            const yCenter = (this.bounds.yMin + this.bounds.yMax) / 2;
+            const newYRange = xRange * aspect;
+            this.setBounds(this.bounds.xMin, this.bounds.xMax, yCenter - newYRange / 2, yCenter + newYRange / 2);
+          }
+
+          zoom(factor, centerMathX, centerMathY) {
+            const { xMin, xMax, yMin, yMax } = this.bounds;
+            const cx = centerMathX !== undefined ? centerMathX : (xMin + xMax) / 2;
+            const cy = centerMathY !== undefined ? centerMathY : (yMin + yMax) / 2;
+
+            const newXMin = cx + (xMin - cx) * factor;
+            const newXMax = cx + (xMax - cx) * factor;
+            const newYMin = cy + (yMin - cy) * factor;
+            const newYMax = cy + (yMax - cy) * factor;
+
+            this.setBounds(newXMin, newXMax, newYMin, newYMax);
+          }
+
+          pan(dxMath, dyMath) {
+            this.setBounds(
+              this.bounds.xMin + dxMath,
+              this.bounds.xMax + dxMath,
+              this.bounds.yMin + dyMath,
+              this.bounds.yMax + dyMath
+            );
+          }
+
+          bindEvents() {
+            const startDrag = (clientX, clientY) => {
+              this.isDragging = true;
+              this.dragStart = { x: clientX, y: clientY };
+              this.dragStartBounds = { ...this.bounds };
+            };
+
+            const moveDrag = (clientX, clientY) => {
+              const rect = this.canvas.getBoundingClientRect();
+              const sx = clientX - rect.left;
+              const sy = clientY - rect.top;
+
+              if (this.isDragging && this.dragStartBounds) {
+                const dxPx = clientX - this.dragStart.x;
+                const dyPx = clientY - this.dragStart.y;
+
+                const xRange = this.dragStartBounds.xMax - this.dragStartBounds.xMin;
+                const yRange = this.dragStartBounds.yMax - this.dragStartBounds.yMin;
+
+                const dxMath = -(dxPx / rect.width) * xRange;
+                const dyMath = (dyPx / rect.height) * yRange;
+
+                this.bounds = {
+                  xMin: this.dragStartBounds.xMin + dxMath,
+                  xMax: this.dragStartBounds.xMax + dxMath,
+                  yMin: this.dragStartBounds.yMin + dyMath,
+                  yMax: this.dragStartBounds.yMax + dyMath,
+                };
+
+                if (this.onBoundsChange) this.onBoundsChange(this.bounds);
+                this.render();
+                return;
+              }
+
+              // Hover to Trace
+              if (sx >= 0 && sx <= rect.width && sy >= 0 && sy <= rect.height) {
+                const mathX = this.bounds.xMin + (sx / rect.width) * (this.bounds.xMax - this.bounds.xMin);
+                const mathY = this.bounds.yMin + ((rect.height - sy) / rect.height) * (this.bounds.yMax - this.bounds.yMin);
+                this.tracePoint = { mouseX: sx, mouseY: sy, mathX, mathY };
+                this.render();
+              } else {
+                this.tracePoint = null;
+                this.render();
+              }
+            };
+
+            const endDrag = () => {
+              this.isDragging = false;
+              this.dragStartBounds = null;
+            };
+
+            this.canvas.addEventListener('mousedown', (e) => startDrag(e.clientX, e.clientY));
+            window.addEventListener('mousemove', (e) => {
+              if (this.isDragging) moveDrag(e.clientX, e.clientY);
+            });
+            this.canvas.addEventListener('mousemove', (e) => {
+              if (!this.isDragging) moveDrag(e.clientX, e.clientY);
+            });
+            window.addEventListener('mouseup', endDrag);
+
+            this.canvas.addEventListener('mouseleave', () => {
+              if (!this.isDragging) {
+                this.tracePoint = null;
+                this.render();
+                if (this.onTraceChange) this.onTraceChange(null, null, []);
+              }
+            });
+
+            this.canvas.addEventListener('touchstart', (e) => {
+              if (e.touches.length === 1) {
+                startDrag(e.touches[0].clientX, e.touches[0].clientY);
+              }
+            }, { passive: true });
+
+            this.canvas.addEventListener('touchmove', (e) => {
+              if (e.touches.length === 1) {
+                moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+              }
+            }, { passive: true });
+
+            this.canvas.addEventListener('touchend', endDrag);
+
+            // Wheel zoom centered at mouse point
+            this.canvas.addEventListener('wheel', (e) => {
+              e.preventDefault();
+              const rect = this.canvas.getBoundingClientRect();
+              const sx = e.clientX - rect.left;
+              const sy = e.clientY - rect.top;
+
+              const mathX = this.bounds.xMin + (sx / rect.width) * (this.bounds.xMax - this.bounds.xMin);
+              const mathY = this.bounds.yMin + ((rect.height - sy) / rect.height) * (this.bounds.yMax - this.bounds.yMin);
+
+              const factor = e.deltaY < 0 ? 0.85 : 1.18;
+              this.zoom(factor, mathX, mathY);
+            }, { passive: false });
+          }
+
+          render() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = this.canvas.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return;
+
+            this.canvas.width = rect.width * dpr;
+            this.canvas.height = rect.height * dpr;
+
+            const ctx = this.ctx;
+            ctx.resetTransform();
+            ctx.scale(dpr, dpr);
+
+            const w = rect.width;
+            const h = rect.height;
+            const isDark = document.documentElement.classList.contains('dark');
+
+            ctx.fillStyle = isDark ? '#020617' : '#ffffff';
+            ctx.fillRect(0, 0, w, h);
+
+            const { xMin, xMax, yMin, yMax } = this.bounds;
+            const xRange = xMax - xMin;
+            const yRange = yMax - yMin;
+
+            const mathToScreenX = (x) => ((x - xMin) / xRange) * w;
+            const mathToScreenY = (y) => h - ((y - yMin) / yRange) * h;
+            const screenToMathX = (sx) => xMin + (sx / w) * xRange;
+            const screenToMathY = (sy) => yMin + ((h - sy) / h) * yRange;
+
+            const xStep = this.calculateGridStep(xRange, w > 600 ? 12 : 6);
+            const yStep = this.calculateGridStep(yRange, h > 400 ? 10 : 5);
+
+            // Grid Lines
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = isDark ? 'rgba(51, 65, 85, 0.45)' : 'rgba(226, 232, 240, 0.95)';
+            ctx.fillStyle = isDark ? '#94a3b8' : '#64748b';
+            ctx.font = '10px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+
+            const firstX = Math.floor(xMin / xStep) * xStep;
+            for (let x = firstX; x <= xMax; x += xStep) {
+              if (Math.abs(x) < 1e-12) x = 0;
+              const sx = mathToScreenX(x);
+              ctx.beginPath();
+              ctx.moveTo(sx, 0);
+              ctx.lineTo(sx, h);
+              ctx.stroke();
+
+              if (x !== 0) {
+                const originY = Math.max(12, Math.min(h - 18, mathToScreenY(0)));
+                const labelText = parseFloat(x.toPrecision(6)).toString();
+                ctx.fillText(labelText, sx, originY + 4);
+              }
+            }
+
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            const firstY = Math.floor(yMin / yStep) * yStep;
+            for (let y = firstY; y <= yMax; y += yStep) {
+              if (Math.abs(y) < 1e-12) y = 0;
+              const sy = mathToScreenY(y);
+              ctx.beginPath();
+              ctx.moveTo(0, sy);
+              ctx.lineTo(w, sy);
+              ctx.stroke();
+
+              if (y !== 0) {
+                const originX = Math.max(30, Math.min(w - 10, mathToScreenX(0)));
+                const labelText = parseFloat(y.toPrecision(6)).toString();
+                ctx.fillText(labelText, originX - 6, sy);
+              }
+            }
+
+            // Primary Axes
+            ctx.lineWidth = 1.75;
+            ctx.strokeStyle = isDark ? '#64748b' : '#94a3b8';
+
+            if (yMin <= 0 && yMax >= 0) {
+              const sy0 = mathToScreenY(0);
+              ctx.beginPath();
+              ctx.moveTo(0, sy0);
+              ctx.lineTo(w, sy0);
+              ctx.stroke();
+            }
+
+            if (xMin <= 0 && xMax >= 0) {
+              const sx0 = mathToScreenX(0);
+              ctx.beginPath();
+              ctx.moveTo(sx0, 0);
+              ctx.lineTo(sx0, h);
+              ctx.stroke();
+            }
+
+            if (xMin <= 0 && xMax >= 0 && yMin <= 0 && yMax >= 0) {
+              const sx0 = mathToScreenX(0);
+              const sy0 = mathToScreenY(0);
+              ctx.fillText('0', sx0 - 6, sy0 + 10);
+            }
+
+            // Function Curves
+            this.functions.forEach(f => {
+              if (!f.visible || !f.compiled) return;
+
+              ctx.save();
+              ctx.beginPath();
+              ctx.strokeStyle = f.color;
+              ctx.lineWidth = 2.5;
+              ctx.lineJoin = 'round';
+              ctx.lineCap = 'round';
+
+              let lastY = null;
+              let isDrawing = false;
+
+              for (let px = 0; px <= w; px++) {
+                const mx = screenToMathX(px);
+                const my = f.compiled(mx);
+
+                if (!isNaN(my) && isFinite(my)) {
+                  const py = mathToScreenY(my);
+
+                  if (isDrawing && lastY !== null && Math.abs(py - lastY) > h * 0.7 && Math.sign(my) !== Math.sign(screenToMathY(lastY))) {
+                    ctx.moveTo(px, py);
+                  } else if (!isDrawing) {
+                    ctx.moveTo(px, py);
+                    isDrawing = true;
+                  } else {
+                    ctx.lineTo(px, py);
+                  }
+                  lastY = py;
+                } else {
+                  isDrawing = false;
+                  lastY = null;
+                }
+              }
+
+              ctx.stroke();
+              ctx.restore();
+            });
+
+            // Point Tracing
+            if (this.tracePoint) {
+              const { mouseX, mouseY } = this.tracePoint;
+              const mathX = screenToMathX(mouseX);
+
+              ctx.save();
+              ctx.setLineDash([4, 4]);
+              ctx.lineWidth = 1;
+              ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.6)' : 'rgba(100, 116, 139, 0.6)';
+
+              ctx.beginPath();
+              ctx.moveTo(mouseX, 0);
+              ctx.lineTo(mouseX, h);
+              ctx.moveTo(0, mouseY);
+              ctx.lineTo(w, mouseY);
+              ctx.stroke();
+              ctx.restore();
+
+              const traceValues = [];
+              this.functions.forEach(f => {
+                if (!f.visible || !f.compiled) return;
+                const valY = f.compiled(mathX);
+                if (!isNaN(valY) && isFinite(valY)) {
+                  const sy = mathToScreenY(valY);
+                  traceValues.push({ expr: f.expr, val: valY, color: f.color });
+
+                  if (sy >= -10 && sy <= h + 10) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(mouseX, sy, 7, 0, Math.PI * 2);
+                    ctx.fillStyle = f.color + '44';
+                    ctx.fill();
+
+                    ctx.beginPath();
+                    ctx.arc(mouseX, sy, 4.5, 0, Math.PI * 2);
+                    ctx.fillStyle = f.color;
+                    ctx.fill();
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                    ctx.restore();
+                  }
+                }
+              });
+
+              if (this.onTraceChange) {
+                this.onTraceChange(mathX, screenToMathY(mouseY), traceValues);
+              }
+            }
+          }
+        }
+
+        // --- MAIN APPLICATION CONTROLLER ---
+        class ApexCalcApp {
+          constructor() {
+            this.storage = new StorageManager();
+            this.mathEngine = new MathEngine(this.storage);
+            this.programmerEngine = new ProgrammerEngine(this.storage);
+
+            // App State
+            this.currentMode = this.storage.get('calcMode', 'standard'); // standard, scientific, programmer, graphing
+            this.expression = '';
+            this.currentInput = '0';
+            this.lastResult = null;
+            this.isResultState = false;
+            this.errorState = null;
+            this.secondFunctionActive = false;
+            this.hypFunctionActive = false;
+            this.history = this.storage.get('history', []);
+            this.memory = this.storage.get('memory', []);
+
+            // DOM elements cache
+            this.cacheDom();
+            this.initTheme();
+
+            // Initialize Graphing Engine
+            this.graphingEngine = new GraphingEngine(
+              this.graphCanvas,
+              (bounds) => this.onGraphBoundsUpdate(bounds),
+              (x, y, values) => this.onGraphTraceUpdate(x, y, values)
+            );
+
+            this.renderBitMatrix();
+            this.bindEvents();
+            this.setMode(this.currentMode);
+            this.updateDisplay();
+            this.updateHistoryUI();
+            this.updateMemoryUI();
+          }
+
+          cacheDom() {
+            // Displays
+            this.displayExpr = document.getElementById('display-expression');
+            this.displayResult = document.getElementById('display-result');
+            this.displayPrevAns = document.getElementById('display-prev-ans');
+            this.displaySubtext = document.getElementById('display-mode-subtext');
+            this.activeModeLabel = document.getElementById('active-mode-label');
+            this.activeAngleBadge = document.getElementById('active-angle-badge');
+            this.activeWordBadge = document.getElementById('active-programmer-word-badge');
+            this.memoryActiveIndicator = document.getElementById('memory-active-indicator');
+
+            // Keypads & Panels
+            this.keypadStandard = document.getElementById('keypad-standard');
+            this.keypadScientific = document.getElementById('keypad-scientific');
+            this.keypadProgrammer = document.getElementById('keypad-programmer');
+            this.programmerPanel = document.getElementById('programmer-panel');
+            this.scientificRibbon = document.getElementById('scientific-ribbon');
+            this.calcCard = document.getElementById('calculator-card');
+
+            // Graphing Workspace elements
+            this.graphingCard = document.getElementById('graphing-card');
+            this.graphCanvas = document.getElementById('graph-canvas');
+            this.graphBoundsSummary = document.getElementById('graph-bounds-summary');
+            this.graphTraceCoords = document.getElementById('graph-trace-coords');
+            this.graphActiveCount = document.getElementById('graph-active-count');
+            this.graphFunctionsList = document.getElementById('graph-functions-list');
+            this.boundsModal = document.getElementById('bounds-modal');
+
+            // Programmer displays
+            this.progValHex = document.getElementById('prog-val-hex');
+            this.progValDec = document.getElementById('prog-val-dec');
+            this.progValOct = document.getElementById('prog-val-oct');
+            this.progValBin = document.getElementById('prog-val-bin');
+            this.progSignedLabel = document.getElementById('prog-signed-label');
+            this.bitMatrix = document.getElementById('bit-matrix');
+            this.activeBitCount = document.getElementById('active-bit-count');
+
+            // Mode tabs
+            this.modeTabs = {
+              standard: document.getElementById('mode-standard-btn'),
+              scientific: document.getElementById('mode-scientific-btn'),
+              programmer: document.getElementById('mode-programmer-btn'),
+              graphing: document.getElementById('mode-graphing-btn'),
+            };
+
+            // Drawer
+            this.drawer = document.getElementById('history-drawer');
+            this.drawerBackdrop = document.getElementById('drawer-backdrop');
+            this.historyBadge = document.getElementById('history-badge');
+            this.historyList = document.getElementById('history-items-list');
+            this.historyEmpty = document.getElementById('history-empty-state');
+            this.historyCountText = document.getElementById('history-count-text');
+            this.memoryList = document.getElementById('memory-items-list');
+            this.memoryEmpty = document.getElementById('memory-empty-state');
+
+            // Modals & Toasts
+            this.shortcutsModal = document.getElementById('shortcuts-modal');
+            this.privacyModal = document.getElementById('privacy-modal');
+            this.toastContainer = document.getElementById('toast-container');
+
+            // Footer
+            this.footerAngle = document.getElementById('footer-angle-mode');
+            this.footerBase = document.getElementById('footer-base-mode');
+          }
+
+          initTheme() {
+            const saved = this.storage.get('theme', 'dark');
+            if (saved === 'light') {
+              document.documentElement.classList.remove('dark');
+              document.getElementById('theme-icon').className = 'fa-solid fa-moon text-slate-700 text-sm';
+            } else {
+              document.documentElement.classList.add('dark');
+              document.getElementById('theme-icon').className = 'fa-solid fa-sun text-amber-400 text-sm';
+            }
+          }
+
+          toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            this.storage.set('theme', isDark ? 'dark' : 'light');
+            document.getElementById('theme-icon').className = isDark
+              ? 'fa-solid fa-sun text-amber-400 text-sm'
+              : 'fa-solid fa-moon text-slate-700 text-sm';
+            if (this.graphingEngine) this.graphingEngine.render();
+            this.showToast(isDark ? 'Dark theme enabled' : 'Light theme enabled');
+          }
+
+          onGraphBoundsUpdate(bounds) {
+            const formatNum = (n) => parseFloat(n.toFixed(2));
+            this.graphBoundsSummary.textContent = `X: [${formatNum(bounds.xMin)}, ${formatNum(bounds.xMax)}] · Y: [${formatNum(bounds.yMin)}, ${formatNum(bounds.yMax)}]`;
+          }
+
+          onGraphTraceUpdate(x, y, values) {
+            if (x === null) {
+              this.graphTraceCoords.textContent = 'Hover canvas to probe';
+              return;
+            }
+
+            const xStr = x.toFixed(3);
+            if (values && values.length > 0) {
+              const items = values.map(v => `${v.expr}: ${v.val.toFixed(3)}`).join(' | ');
+              this.graphTraceCoords.textContent = `X: ${xStr} · ${items}`;
+            } else {
+              this.graphTraceCoords.textContent = `X: ${xStr}, Y: ${y.toFixed(3)}`;
+            }
+          }
+
+          renderGraphFunctionsUI() {
+            this.graphFunctionsList.innerHTML = '';
+            let activeCount = 0;
+
+            this.graphingEngine.functions.forEach((f, idx) => {
+              if (f.visible) activeCount++;
+
+              const row = document.createElement('div');
+              row.className = 'flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 transition-all';
+
+              row.innerHTML = `
+                <div class="w-3.5 h-3.5 rounded-full shrink-0 shadow-xs" style="background-color: ${f.color}"></div>
+                <span class="font-mono font-bold text-xs text-slate-500 shrink-0">f${idx + 1}(x) =</span>
+                <input type="text" class="func-expr-input flex-1 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-brand-500" value="${f.expr}" placeholder="e.g. sin(x), x^2 - 4" />
+                <button class="func-toggle-btn w-8 h-8 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center justify-center transition-colors text-xs" title="${f.visible ? 'Hide function' : 'Show function'}">
+                  <i class="fa-solid ${f.visible ? 'fa-eye' : 'fa-eye-slash'}"></i>
+                </button>
+                <button class="func-del-btn w-8 h-8 rounded-lg hover:bg-rose-100 dark:hover:bg-rose-950/50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-colors text-xs ${this.graphingEngine.functions.length <= 1 ? 'opacity-30 pointer-events-none' : ''}" title="Delete function">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              `;
+
+              const input = row.querySelector('.func-expr-input');
+              input.addEventListener('input', (e) => {
+                this.graphingEngine.setFunctionExpr(f.id, e.target.value);
+              });
+
+              const toggleBtn = row.querySelector('.func-toggle-btn');
+              toggleBtn.addEventListener('click', () => {
+                this.graphingEngine.toggleFunctionVisibility(f.id);
+                this.renderGraphFunctionsUI();
+              });
+
+              const delBtn = row.querySelector('.func-del-btn');
+              delBtn.addEventListener('click', () => {
+                this.graphingEngine.removeFunction(f.id);
+                this.renderGraphFunctionsUI();
+                this.showToast('Function removed');
+              });
+
+              this.graphFunctionsList.appendChild(row);
+            });
+
+            this.graphActiveCount.textContent = activeCount;
+          }
+
+          setMode(mode) {
+            this.currentMode = mode;
+            this.storage.set('calcMode', mode);
+
+            // Update UI tab styles
+            Object.keys(this.modeTabs).forEach(k => {
+              const btn = this.modeTabs[k];
+              if (!btn) return;
+              if (k === mode) {
+                btn.className = 'mode-tab-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-slate-900 dark:text-white bg-white dark:bg-slate-700 shadow-sm font-bold';
+              } else {
+                btn.className = 'mode-tab-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+              }
+            });
+
+            if (mode === 'graphing') {
+              this.calcCard.classList.add('hidden');
+              this.graphingCard.classList.remove('hidden');
+              this.renderGraphFunctionsUI();
+              setTimeout(() => this.graphingEngine.render(), 30);
+              this.activeModeLabel.textContent = 'Graphing Mode';
+              this.displaySubtext.textContent = '2D Coordinate Engine';
+            } else {
+              this.calcCard.classList.remove('hidden');
+              this.graphingCard.classList.add('hidden');
+
+              if (mode === 'standard') {
+                this.calcCard.className = 'w-full max-w-md transition-all duration-300 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xl shadow-slate-200/50 dark:shadow-none';
+                this.keypadStandard.classList.remove('hidden');
+                this.keypadScientific.classList.add('hidden');
+                this.keypadProgrammer.classList.add('hidden');
+                this.programmerPanel.classList.add('hidden');
+                this.scientificRibbon.classList.add('hidden');
+                this.activeAngleBadge.classList.add('hidden');
+                this.activeWordBadge.classList.add('hidden');
+                this.activeModeLabel.textContent = 'Standard Mode';
+                this.displaySubtext.textContent = 'PEMDAS Engine';
+              } else if (mode === 'scientific') {
+                this.calcCard.className = 'w-full max-w-2xl transition-all duration-300 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xl shadow-slate-200/50 dark:shadow-none';
+                this.keypadStandard.classList.add('hidden');
+                this.keypadScientific.classList.remove('hidden');
+                this.keypadProgrammer.classList.add('hidden');
+                this.programmerPanel.classList.add('hidden');
+                this.scientificRibbon.classList.remove('hidden');
+                this.activeAngleBadge.classList.remove('hidden');
+                this.activeAngleBadge.textContent = this.mathEngine.angleMode;
+                this.activeWordBadge.classList.add('hidden');
+                this.activeModeLabel.textContent = 'Scientific Mode';
+                this.displaySubtext.textContent = `Trigonometry (${this.mathEngine.angleMode}) & Exponents`;
+              } else if (mode === 'programmer') {
+                this.calcCard.className = 'w-full max-w-2xl transition-all duration-300 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xl shadow-slate-200/50 dark:shadow-none';
+                this.keypadStandard.classList.add('hidden');
+                this.keypadScientific.classList.add('hidden');
+                this.keypadProgrammer.classList.remove('hidden');
+                this.programmerPanel.classList.remove('hidden');
+                this.scientificRibbon.classList.add('hidden');
+                this.activeAngleBadge.classList.add('hidden');
+                this.activeWordBadge.classList.remove('hidden');
+                this.activeWordBadge.textContent = `${this.programmerEngine.wordSize}-bit ${this.getWordName(this.programmerEngine.wordSize)}`;
+                this.activeModeLabel.textContent = 'Programmer Mode';
+                this.displaySubtext.textContent = `Base: ${this.programmerEngine.base} · Bitwise Engine`;
+                this.updateProgrammerUI();
+              }
+
+              this.updateKeypadState();
+            }
+          }
+
+          getWordName(bits) {
+            switch(bits) {
+              case 64: return 'QWORD';
+              case 32: return 'DWORD';
+              case 16: return 'WORD';
+              case 8: return 'BYTE';
+              default: return 'INT';
+            }
+          }
+
+          updateKeypadState() {
+            if (this.currentMode !== 'programmer') return;
+
+            // Enable / disable number and hex keys based on active base
+            const base = this.programmerEngine.base;
+            const hexKeys = document.querySelectorAll('.hex-key');
+            const numKeys = document.querySelectorAll('#keypad-programmer .num-key');
+
+            hexKeys.forEach(btn => {
+              const isHex = base === 'HEX';
+              btn.disabled = !isHex;
+              btn.style.opacity = isHex ? '1' : '0.25';
+              btn.style.cursor = isHex ? 'pointer' : 'not-allowed';
+            });
+
+            numKeys.forEach(btn => {
+              const val = btn.getAttribute('data-val');
+              const num = parseInt(val, 10);
+              let enabled = true;
+              if (base === 'BIN') enabled = (num === 0 || num === 1);
+              else if (base === 'OCT') enabled = (num >= 0 && num <= 7);
+              else if (base === 'DEC') enabled = (num >= 0 && num <= 9);
+              else if (base === 'HEX') enabled = true;
+
+              btn.disabled = !enabled;
+              btn.style.opacity = enabled ? '1' : '0.25';
+              btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+            });
+          }
+
+          // Build 64 Interactive Bit Cells
+          renderBitMatrix() {
+            this.bitMatrix.innerHTML = '';
+            // 64 bits from 63 down to 0
+            for (let i = 63; i >= 0; i--) {
+              const btn = document.createElement('button');
+              btn.className = 'bit-cell h-7 sm:h-8 flex flex-col items-center justify-center rounded-md border border-slate-200 dark:border-slate-800 text-[10px] sm:text-xs font-mono font-semibold transition-all hover:border-brand-500';
+              btn.setAttribute('data-bit', i.toString());
+              btn.setAttribute('title', `Bit ${i} (${Math.pow(2, i % 8)})`);
+              btn.innerHTML = `
+                <span class="bit-val">0</span>
+                <span class="text-[8px] text-slate-400 -mt-1 hidden sm:inline">${i}</span>
+              `;
+              btn.addEventListener('click', () => {
+                this.programmerEngine.toggleBit(i);
+                this.currentInput = this.programmerEngine.getAllRepresentations().dec;
+                this.updateDisplay();
+                this.updateProgrammerUI();
+              });
+              this.bitMatrix.appendChild(btn);
+            }
+          }
+
+          updateProgrammerUI() {
+            if (this.currentMode !== 'programmer') return;
+
+            // Sync engine with current number input
+            try {
+              if (this.currentInput && this.currentInput !== 'Cannot divide by 0') {
+                this.programmerEngine.setValue(this.currentInput);
+              }
+            } catch (e) {
+              // ignore parse errors
+            }
+
+            const reps = this.programmerEngine.getAllRepresentations();
+            this.progValHex.textContent = reps.hex;
+            this.progValDec.textContent = reps.dec;
+            this.progValOct.textContent = reps.oct;
+            this.progValBin.textContent = reps.bin;
+
+            // Base rows active state
+            document.querySelectorAll('.base-row-btn').forEach(btn => {
+              const b = btn.getAttribute('data-base');
+              if (b === this.programmerEngine.base) {
+                btn.className = 'base-row-btn flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-brand-50/80 dark:bg-brand-950/50 border border-brand-200/80 dark:border-brand-800/60 text-left';
+                btn.querySelector('span:first-child').className = 'font-bold text-brand-600 dark:text-brand-400 w-10';
+              } else {
+                btn.className = 'base-row-btn flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-800/80 transition-colors text-left';
+                btn.querySelector('span:first-child').className = 'font-bold text-slate-500 dark:text-slate-400 w-10';
+              }
+            });
+
+            // Word size active state
+            document.querySelectorAll('.word-size-btn').forEach(btn => {
+              const sz = Number(btn.getAttribute('data-size'));
+              if (sz === this.programmerEngine.wordSize) {
+                btn.className = 'word-size-btn px-2 py-1 rounded-lg text-slate-900 dark:text-white bg-white dark:bg-slate-700 shadow-sm font-bold';
+              } else {
+                btn.className = 'word-size-btn px-2 py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+              }
+            });
+
+            // Signed/Unsigned toggle label
+            this.progSignedLabel.textContent = this.programmerEngine.isSigned ? "2's Comp (Signed)" : "Unsigned";
+
+            // Update 64 bits in visualizer
+            const rawBin = reps.rawBin.padStart(64, '0');
+            const bitCells = this.bitMatrix.querySelectorAll('.bit-cell');
+            let setCount = 0;
+
+            bitCells.forEach(cell => {
+              const bitIdx = parseInt(cell.getAttribute('data-bit'), 10);
+              const charIdx = 63 - bitIdx;
+              const isOne = rawBin[charIdx] === '1';
+              const isEnabled = bitIdx < this.programmerEngine.wordSize;
+
+              const valSpan = cell.querySelector('.bit-val');
+              valSpan.textContent = isOne ? '1' : '0';
+
+              if (!isEnabled) {
+                cell.className = 'bit-cell h-7 sm:h-8 flex flex-col items-center justify-center rounded-md border border-slate-100 dark:border-slate-850 bg-slate-100/50 dark:bg-slate-900/40 text-slate-300 dark:text-slate-700 pointer-events-none';
+              } else if (isOne) {
+                setCount++;
+                cell.className = 'bit-cell h-7 sm:h-8 flex flex-col items-center justify-center rounded-md border border-brand-400 dark:border-brand-500 bg-brand-500 text-white font-bold shadow-xs';
+              } else {
+                cell.className = 'bit-cell h-7 sm:h-8 flex flex-col items-center justify-center rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-brand-500 cursor-pointer';
+              }
+            });
+
+            this.activeBitCount.textContent = `${setCount} of ${this.programmerEngine.wordSize} bits set`;
+            this.footerBase.textContent = this.programmerEngine.base;
+          }
+
+          updateDisplay() {
+            this.displayExpr.textContent = this.expression || '';
+            this.displayResult.textContent = this.errorState || this.currentInput || '0';
+
+            // Auto-scale display font size if result is very long
+            const len = (this.errorState || this.currentInput).length;
+            if (len > 16) {
+              this.displayResult.className = 'font-mono font-bold text-xl sm:text-2xl text-slate-900 dark:text-white text-right tabular-nums break-all';
+            } else if (len > 10) {
+              this.displayResult.className = 'font-mono font-bold text-2xl sm:text-3xl text-slate-900 dark:text-white text-right tabular-nums break-all';
+            } else {
+              this.displayResult.className = 'font-mono font-bold text-3xl sm:text-4xl md:text-5xl tracking-tight text-slate-900 dark:text-white text-right tabular-nums break-all';
+            }
+
+            if (this.lastResult !== null) {
+              this.displayPrevAns.textContent = `Ans = ${this.lastResult}`;
+            } else {
+              this.displayPrevAns.textContent = '';
+            }
+
+            // Sync angle mode in badges
+            this.activeAngleBadge.textContent = this.mathEngine.angleMode;
+            this.footerAngle.textContent = this.mathEngine.angleMode;
+
+            // Sync programmer representations
+            if (this.currentMode === 'programmer') {
+              this.updateProgrammerUI();
+            }
+          }
+
+          // Number & Input Handling
+          inputDigit(digit) {
+            if (this.errorState) this.clearAll();
+
+            if (this.isResultState) {
+              this.currentInput = digit;
+              this.isResultState = false;
+            } else if (this.currentInput === '0') {
+              this.currentInput = digit;
+            } else {
+              this.currentInput += digit;
+            }
+
+            this.updateDisplay();
+          }
+
+          inputDecimal() {
+            if (this.errorState) this.clearAll();
+
+            if (this.isResultState) {
+              this.currentInput = '0.';
+              this.isResultState = false;
+            } else if (!this.currentInput.includes('.')) {
+              this.currentInput += '.';
+            }
+
+            this.updateDisplay();
+          }
+
+          inputOperator(op) {
+            if (this.errorState) this.clearAll();
+
+            // Append currentInput to expression
+            if (this.expression.endsWith(')')) {
+              this.expression += ` ${op} `;
+            } else {
+              this.expression += `${this.currentInput} ${op} `;
+            }
+
+            this.currentInput = '0';
+            this.isResultState = false;
+            this.updateDisplay();
+          }
+
+          inputParenthesis(paren) {
+            if (this.errorState) this.clearAll();
+
+            if (paren === '(') {
+              if (this.currentInput !== '0' && !this.isResultState) {
+                this.expression += `${this.currentInput} * (`;
+              } else {
+                this.expression += '(';
+              }
+              this.currentInput = '0';
+            } else if (paren === ')') {
+              this.expression += `${this.currentInput})`;
+              this.currentInput = '0';
+            }
+
+            this.updateDisplay();
+          }
+
+          inputConstant(name) {
+            if (this.errorState) this.clearAll();
+
+            let val;
+            if (name === 'pi') val = Math.PI;
+            else if (name === 'e') val = Math.E;
+            else if (name === 'phi') val = (1 + Math.sqrt(5)) / 2;
+
+            this.currentInput = this.mathEngine.normalizeFloat(val).toString();
+            this.isResultState = true;
+            this.updateDisplay();
+          }
+
+          applyFunction(fn) {
+            if (this.errorState) this.clearAll();
+
+            const num = parseFloat(this.currentInput);
+            let res;
+
+            try {
+              switch (fn) {
+                case '1/x':
+                  if (num === 0) throw new Error('Cannot divide by 0');
+                  res = 1 / num;
+                  break;
+                case 'sqr':
+                  res = num * num;
+                  break;
+                case 'sqrt':
+                  if (num < 0) throw new Error('Invalid Input');
+                  res = Math.sqrt(num);
+                  break;
+                case 'sin':
+                  res = this.secondFunctionActive
+                    ? this.mathEngine.fromRadians(Math.asin(num))
+                    : (this.hypFunctionActive ? Math.sinh(num) : Math.sin(this.mathEngine.toRadians(num)));
+                  if (this.mathEngine.angleMode === 'DEG' && !this.secondFunctionActive && !this.hypFunctionActive && num % 180 === 0) res = 0;
+                  break;
+                case 'cos':
+                  res = this.secondFunctionActive
+                    ? this.mathEngine.fromRadians(Math.acos(num))
+                    : (this.hypFunctionActive ? Math.cosh(num) : Math.cos(this.mathEngine.toRadians(num)));
+                  if (this.mathEngine.angleMode === 'DEG' && !this.secondFunctionActive && !this.hypFunctionActive && (num - 90) % 180 === 0) res = 0;
+                  break;
+                case 'tan':
+                  if (this.mathEngine.angleMode === 'DEG' && !this.secondFunctionActive && (num - 90) % 180 === 0) throw new Error('Undefined');
+                  res = this.secondFunctionActive
+                    ? this.mathEngine.fromRadians(Math.atan(num))
+                    : (this.hypFunctionActive ? Math.tanh(num) : Math.tan(this.mathEngine.toRadians(num)));
+                  break;
+                case 'ln':
+                  if (this.secondFunctionActive) res = Math.exp(num); // e^x
+                  else {
+                    if (num <= 0) throw new Error('Domain Error');
+                    res = Math.log(num);
+                  }
+                  break;
+                case 'log10':
+                  if (this.secondFunctionActive) res = Math.pow(10, num); // 10^x
+                  else {
+                    if (num <= 0) throw new Error('Domain Error');
+                    res = Math.log10(num);
+                  }
+                  break;
+                case 'fact':
+                  res = this.mathEngine.factorial(num);
+                  if (isNaN(res)) throw new Error('Domain Error');
+                  break;
+                case 'cube':
+                  res = num * num * num;
+                  break;
+                case 'cbrt':
+                  res = Math.cbrt(num);
+                  break;
+                case 'abs':
+                  res = Math.abs(num);
+                  break;
+                default:
+                  return;
+              }
+
+              this.currentInput = this.mathEngine.normalizeFloat(res).toString();
+              this.isResultState = true;
+              this.updateDisplay();
+            } catch (err) {
+              this.errorState = err.message || 'Error';
+              this.updateDisplay();
+            }
+          }
+
+          toggleNegate() {
+            if (this.errorState) this.clearAll();
+
+            if (this.currentMode === 'programmer') {
+              this.programmerEngine.setValue(-this.programmerEngine.currentValue);
+              this.currentInput = this.programmerEngine.getAllRepresentations().dec;
+            } else {
+              if (this.currentInput.startsWith('-')) {
+                this.currentInput = this.currentInput.substring(1);
+              } else if (this.currentInput !== '0') {
+                this.currentInput = '-' + this.currentInput;
+              }
+            }
+            this.updateDisplay();
+          }
+
+          applyPercent() {
+            if (this.errorState) this.clearAll();
+            const val = parseFloat(this.currentInput);
+            this.currentInput = (val / 100).toString();
+            this.isResultState = true;
+            this.updateDisplay();
+          }
+
+          backspace() {
+            if (this.errorState) {
+              this.clearAll();
+              return;
+            }
+
+            if (this.isResultState) {
+              this.currentInput = '0';
+              this.isResultState = false;
+            } else if (this.currentInput.length > 1) {
+              this.currentInput = this.currentInput.slice(0, -1);
+            } else {
+              this.currentInput = '0';
+            }
+
+            this.updateDisplay();
+          }
+
+          clearAll() {
+            this.expression = '';
+            this.currentInput = '0';
+            this.errorState = null;
+            this.isResultState = false;
+            if (this.currentMode === 'programmer') {
+              this.programmerEngine.setValue(0n);
+            }
+            this.updateDisplay();
+          }
+
+          // Evaluate calculation
+          calculate() {
+            if (this.errorState) {
+              this.clearAll();
+              return;
+            }
+
+            let fullExpr = this.expression;
+            if (!fullExpr.endsWith(')')) {
+              fullExpr += this.currentInput;
+            }
+
+            if (!fullExpr.trim()) return;
+
+            try {
+              const base = (this.currentMode === 'programmer') ? this.programmerEngine.base : 'DEC';
+              const res = this.mathEngine.evaluate(fullExpr, base);
+
+              let formattedRes;
+              if (this.currentMode === 'programmer') {
+                const mask = this.programmerEngine.getMask();
+                const bigRes = BigInt(Math.trunc(res)) & mask;
+                this.programmerEngine.setValue(bigRes);
+                const reps = this.programmerEngine.getAllRepresentations();
+                if (base === 'HEX') formattedRes = reps.rawHex.replace(/^0+(?!$)/, '') || '0';
+                else if (base === 'BIN') formattedRes = reps.rawBin.replace(/^0+(?!$)/, '') || '0';
+                else if (base === 'OCT') formattedRes = reps.oct;
+                else formattedRes = reps.dec;
+              } else {
+                formattedRes = res.toString();
+              }
+
+              // Save to history
+              this.addHistory({
+                expression: fullExpr,
+                result: formattedRes,
+                mode: this.currentMode,
+                timestamp: Date.now()
+              });
+
+              // Update displays
+              this.displayResult.classList.add('result-pulse');
+              setTimeout(() => this.displayResult.classList.remove('result-pulse'), 200);
+
+              this.lastResult = formattedRes;
+              this.currentInput = formattedRes;
+              this.expression = '';
+              this.isResultState = true;
+              this.updateDisplay();
+            } catch (err) {
+              this.errorState = err.message || 'Error';
+              this.updateDisplay();
+            }
+          }
+
+          // Memory Stack operations
+          memoryAction(action) {
+            const currentVal = parseFloat(this.currentInput) || 0;
+
+            switch (action) {
+              case 'mc': // Memory Clear
+                this.memory = [];
+                this.storage.set('memory', []);
+                this.showToast('Memory cleared');
+                break;
+              case 'mr': // Memory Recall
+                if (this.memory.length > 0) {
+                  this.currentInput = this.memory[0].toString();
+                  this.isResultState = true;
+                  this.showToast(`Recalled ${this.currentInput}`);
+                }
+                break;
+              case 'ms': // Memory Store
+                this.memory.unshift(currentVal);
+                this.storage.set('memory', this.memory);
+                this.showToast(`Stored ${currentVal} in Memory`);
+                break;
+              case 'm-plus': // Memory Add
+                if (this.memory.length === 0) this.memory.push(0);
+                this.memory[0] = this.mathEngine.normalizeFloat(this.memory[0] + currentVal);
+                this.storage.set('memory', this.memory);
+                this.showToast(`M+ added ${currentVal} (Total: ${this.memory[0]})`);
+                break;
+              case 'm-minus': // Memory Subtract
+                if (this.memory.length === 0) this.memory.push(0);
+                this.memory[0] = this.mathEngine.normalizeFloat(this.memory[0] - currentVal);
+                this.storage.set('memory', this.memory);
+                this.showToast(`M- subtracted ${currentVal} (Total: ${this.memory[0]})`);
+                break;
+            }
+
+            this.updateMemoryUI();
+            this.updateDisplay();
+          }
+
+          // History Management
+          addHistory(entry) {
+            this.history.unshift(entry);
+            // Cap history to 100 entries
+            if (this.history.length > 100) this.history.pop();
+            this.storage.set('history', this.history);
+            this.updateHistoryUI();
+          }
+
+          clearHistory() {
+            this.history = [];
+            this.storage.set('history', []);
+            this.updateHistoryUI();
+            this.showToast('Calculation history cleared');
+          }
+
+          updateHistoryUI() {
+            this.historyBadge.textContent = this.history.length;
+            this.historyCountText.textContent = `${this.history.length} calculation${this.history.length === 1 ? '' : 's'} recorded`;
+
+            if (this.history.length === 0) {
+              this.historyList.innerHTML = '';
+              this.historyList.appendChild(this.historyEmpty);
+              this.historyEmpty.classList.remove('hidden');
+              return;
+            }
+
+            this.historyEmpty.classList.add('hidden');
+            this.historyList.innerHTML = '';
+
+            this.history.forEach((item, index) => {
+              const card = document.createElement('div');
+              card.className = 'p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 hover:bg-slate-100/80 dark:hover:bg-slate-800 transition-all text-xs group cursor-pointer';
+
+              const timeStr = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+              card.innerHTML = `
+                <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                  <span class="font-mono uppercase px-1 rounded bg-slate-200/80 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold">${item.mode || 'STD'}</span>
+                  <span>${timeStr}</span>
+                </div>
+                <div class="font-mono text-slate-500 dark:text-slate-400 truncate mb-1" title="${item.expression}">${item.expression} =</div>
+                <div class="flex items-center justify-between">
+                  <span class="font-mono font-bold text-base text-slate-900 dark:text-white">${item.result}</span>
+                  <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button class="reuse-expr-btn px-2 py-1 rounded bg-white dark:bg-slate-700 hover:bg-brand-500 hover:text-white transition-colors" title="Reuse expression">
+                      <i class="fa-solid fa-arrow-turn-up text-[10px]"></i>
+                    </button>
+                    <button class="use-result-btn px-2 py-1 rounded bg-white dark:bg-slate-700 hover:bg-brand-500 hover:text-white transition-colors" title="Use result">
+                      <i class="fa-regular fa-copy text-[10px]"></i>
+                    </button>
+                  </div>
+                </div>
+              `;
+
+              // Clicking item reloads result into calculator
+              card.addEventListener('click', (e) => {
+                if (e.target.closest('.reuse-expr-btn')) {
+                  this.expression = item.expression;
+                  this.currentInput = '0';
+                  this.isResultState = false;
+                  this.updateDisplay();
+                  this.toggleDrawer(false);
+                  this.showToast('Expression loaded into workspace');
+                } else {
+                  this.currentInput = item.result;
+                  this.isResultState = true;
+                  this.updateDisplay();
+                  this.toggleDrawer(false);
+                  this.showToast('Result loaded into workspace');
+                }
+              });
+
+              this.historyList.appendChild(card);
+            });
+          }
+
+          updateMemoryUI() {
+            if (this.memory.length > 0) {
+              this.memoryActiveIndicator.classList.remove('hidden');
+              this.memoryEmpty.classList.add('hidden');
+            } else {
+              this.memoryActiveIndicator.classList.add('hidden');
+              this.memoryEmpty.classList.remove('hidden');
+            }
+
+            this.memoryList.innerHTML = '';
+            if (this.memory.length === 0) {
+              this.memoryList.appendChild(this.memoryEmpty);
+              return;
+            }
+
+            this.memory.forEach((val, idx) => {
+              const item = document.createElement('div');
+              item.className = 'flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-xs font-mono';
+              item.innerHTML = `
+                <div>
+                  <span class="text-brand-600 dark:text-brand-400 font-bold mr-2">M[${idx}]</span>
+                  <span class="font-bold text-slate-900 dark:text-white">${val}</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <button class="mem-use-btn px-2 py-1 rounded bg-white dark:bg-slate-700 hover:bg-brand-500 hover:text-white transition-colors" title="Recall into input">
+                    Recall
+                  </button>
+                  <button class="mem-del-btn px-2 py-1 rounded text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors" title="Delete entry">
+                    <i class="fa-solid fa-trash-can text-[10px]"></i>
+                  </button>
+                </div>
+              `;
+
+              item.querySelector('.mem-use-btn').addEventListener('click', () => {
+                this.currentInput = val.toString();
+                this.isResultState = true;
+                this.updateDisplay();
+                this.toggleDrawer(false);
+                this.showToast(`Recalled M[${idx}]`);
+              });
+
+              item.querySelector('.mem-del-btn').addEventListener('click', () => {
+                this.memory.splice(idx, 1);
+                this.storage.set('memory', this.memory);
+                this.updateMemoryUI();
+                this.updateDisplay();
+                this.showToast('Memory entry removed');
+              });
+
+              this.memoryList.appendChild(item);
+            });
+          }
+
+          // Export history as JSON or CSV file
+          exportHistory(format) {
+            if (this.history.length === 0) {
+              this.showToast('History is empty to export');
+              return;
+            }
+
+            let content = '';
+            let filename = `mikecalc_history_${new Date().toISOString().slice(0, 10)}`;
+            let mimeType = 'text/plain';
+
+            if (format === 'json') {
+              content = JSON.stringify(this.history, null, 2);
+              filename += '.json';
+              mimeType = 'application/json';
+            } else if (format === 'csv') {
+              const headers = ['Timestamp', 'Mode', 'Expression', 'Result'];
+              const rows = this.history.map(h => [
+                new Date(h.timestamp).toISOString(),
+                h.mode || 'standard',
+                `"${(h.expression || '').replace(/"/g, '""')}"`,
+                `"${(h.result || '').replace(/"/g, '""')}"`
+              ]);
+              content = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+              filename += '.csv';
+              mimeType = 'text/csv';
+            }
+
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            this.showToast(`Exported history as ${format.toUpperCase()}`);
+          }
+
+          // Floating Toast Notification
+          showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'animate-toast-in px-4 py-2.5 rounded-2xl bg-slate-900/95 dark:bg-white text-white dark:text-slate-900 shadow-xl border border-slate-700/60 dark:border-slate-200 text-xs font-semibold flex items-center gap-2 pointer-events-auto';
+            toast.innerHTML = `
+              <i class="fa-solid fa-circle-check text-brand-400 dark:text-brand-600 text-sm"></i>
+              <span>${message}</span>
+            `;
+
+            this.toastContainer.appendChild(toast);
+            setTimeout(() => {
+              toast.style.opacity = '0';
+              toast.style.transform = 'translateY(8px)';
+              toast.style.transition = 'all 0.2s ease-in';
+              setTimeout(() => toast.remove(), 200);
+            }, 2400);
+          }
+
+          // Drawer Drawer Slide
+          toggleDrawer(show) {
+            const isOpen = !this.drawer.classList.contains('translate-x-full');
+            const shouldOpen = (show !== undefined) ? show : !isOpen;
+
+            if (shouldOpen) {
+              this.drawer.classList.remove('translate-x-full');
+              this.drawerBackdrop.classList.remove('hidden');
+            } else {
+              this.drawer.classList.add('translate-x-full');
+              this.drawerBackdrop.classList.add('hidden');
+            }
+          }
+
+          // Visual Feedback for Keypress
+          highlightButtonByKey(key) {
+            const selector = `[data-key="${key}"], [data-key="${key.toLowerCase()}"], [data-key="${key.toUpperCase()}"]`;
+            const btn = document.querySelector(selector);
+            if (btn) {
+              btn.classList.add('key-pressed');
+              setTimeout(() => btn.classList.remove('key-pressed'), 140);
+            }
+          }
+
+          // Bind all DOM & Keyboard Events
+          bindEvents() {
+            // Theme Toggle
+            document.getElementById('theme-toggle-btn').addEventListener('click', () => this.toggleTheme());
+
+            // Mode Selector Tabs
+            Object.keys(this.modeTabs).forEach(m => {
+              this.modeTabs[m].addEventListener('click', () => this.setMode(m));
+            });
+
+            // Quick Clear / Reset
+            document.getElementById('clear-all-quick-btn').addEventListener('click', () => this.clearAll());
+
+            // Copy to Clipboard
+            document.getElementById('copy-result-btn').addEventListener('click', () => {
+              const textToCopy = this.errorState || this.currentInput;
+              navigator.clipboard.writeText(textToCopy).then(() => {
+                this.showToast(`Copied ${textToCopy} to clipboard`);
+              }).catch(() => {
+                this.showToast('Copied to clipboard');
+              });
+            });
+
+            // Backspace button
+            document.getElementById('backspace-btn').addEventListener('click', () => this.backspace());
+
+            // Drawer toggles
+            document.getElementById('history-drawer-toggle').addEventListener('click', () => this.toggleDrawer());
+            document.getElementById('drawer-close-btn').addEventListener('click', () => this.toggleDrawer(false));
+            this.drawerBackdrop.addEventListener('click', () => this.toggleDrawer(false));
+
+            // Drawer tabs (History vs Memory)
+            const tabHistory = document.getElementById('drawer-tab-history');
+            const tabMemory = document.getElementById('drawer-tab-memory');
+            const panelHistory = document.getElementById('drawer-panel-history');
+            const panelMemory = document.getElementById('drawer-panel-memory');
+
+            tabHistory.addEventListener('click', () => {
+              tabHistory.className = 'px-3 py-1.5 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition-all font-bold';
+              tabMemory.className = 'px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all';
+              panelHistory.classList.remove('hidden');
+              panelMemory.classList.add('hidden');
+            });
+
+            tabMemory.addEventListener('click', () => {
+              tabMemory.className = 'px-3 py-1.5 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition-all font-bold';
+              tabHistory.className = 'px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all';
+              panelMemory.classList.remove('hidden');
+              panelHistory.classList.add('hidden');
+            });
+
+            // History export & clear
+            document.getElementById('export-history-json').addEventListener('click', () => this.exportHistory('json'));
+            document.getElementById('export-history-csv').addEventListener('click', () => this.exportHistory('csv'));
+            document.getElementById('clear-history-btn').addEventListener('click', () => this.clearHistory());
+            document.getElementById('clear-all-memory-btn').addEventListener('click', () => this.memoryAction('mc'));
+
+            // Angle mode toggle in Scientific Ribbon & badge click
+            const toggleAngle = () => {
+              const modes = ['DEG', 'RAD', 'GRAD'];
+              const next = modes[(modes.indexOf(this.mathEngine.angleMode) + 1) % modes.length];
+              this.mathEngine.setAngleMode(next);
+              document.querySelectorAll('.angle-mode-btn').forEach(btn => {
+                if (btn.getAttribute('data-angle') === next) {
+                  btn.className = 'angle-mode-btn px-2.5 py-1 rounded-lg text-slate-900 dark:text-white bg-white dark:bg-slate-700 shadow-sm font-bold';
+                } else {
+                  btn.className = 'angle-mode-btn px-2.5 py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+                }
+              });
+              this.updateDisplay();
+              this.showToast(`Angle mode: ${next}`);
+            };
+
+            document.querySelectorAll('.angle-mode-btn').forEach(btn => {
+              btn.addEventListener('click', () => {
+                const angle = btn.getAttribute('data-angle');
+                this.mathEngine.setAngleMode(angle);
+                document.querySelectorAll('.angle-mode-btn').forEach(b => {
+                  b.className = b === btn
+                    ? 'angle-mode-btn px-2.5 py-1 rounded-lg text-slate-900 dark:text-white bg-white dark:bg-slate-700 shadow-sm font-bold'
+                    : 'angle-mode-btn px-2.5 py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+                });
+                this.updateDisplay();
+                this.showToast(`Angle mode: ${angle}`);
+              });
+            });
+
+            this.activeAngleBadge.addEventListener('click', toggleAngle);
+            this.footerAngle.addEventListener('click', toggleAngle);
+
+            // 2nd Function Toggle (Shift)
+            const sci2ndBtn = document.getElementById('sci-2nd-toggle');
+            sci2ndBtn.addEventListener('click', () => {
+              this.secondFunctionActive = !this.secondFunctionActive;
+              sci2ndBtn.className = this.secondFunctionActive
+                ? 'px-3 py-1 rounded-xl text-xs font-bold transition-all bg-brand-600 text-white shadow-sm'
+                : 'px-3 py-1 rounded-xl text-xs font-bold transition-all bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700';
+
+              const sinBtn = document.getElementById('btn-trig-sin');
+              const cosBtn = document.getElementById('btn-trig-cos');
+              const tanBtn = document.getElementById('btn-trig-tan');
+              const lnBtn = document.getElementById('btn-sci-ln');
+              const logBtn = document.getElementById('btn-sci-log');
+              const powBtn = document.getElementById('btn-sci-pow');
+              const rootBtn = document.getElementById('btn-sci-root');
+              const sqrBtn = document.getElementById('btn-sci-sqr');
+
+              if (this.secondFunctionActive) {
+                sinBtn.textContent = 'asin';
+                cosBtn.textContent = 'acos';
+                tanBtn.textContent = 'atan';
+                lnBtn.textContent = 'eˣ';
+                logBtn.textContent = '10ˣ';
+                powBtn.textContent = 'ʸ√x';
+                powBtn.setAttribute('data-val', 'yroot');
+                rootBtn.textContent = '∛x';
+                rootBtn.setAttribute('data-fn', 'cbrt');
+                sqrBtn.textContent = 'x³';
+                sqrBtn.setAttribute('data-fn', 'cube');
+              } else {
+                sinBtn.textContent = this.hypFunctionActive ? 'sinh' : 'sin';
+                cosBtn.textContent = this.hypFunctionActive ? 'cosh' : 'cos';
+                tanBtn.textContent = this.hypFunctionActive ? 'tanh' : 'tan';
+                lnBtn.textContent = 'ln';
+                logBtn.textContent = 'log₁₀';
+                powBtn.textContent = 'yˣ';
+                powBtn.setAttribute('data-val', '^');
+                rootBtn.textContent = '√x';
+                rootBtn.setAttribute('data-fn', 'sqrt');
+                sqrBtn.textContent = 'x²';
+                sqrBtn.setAttribute('data-fn', 'sqr');
+              }
+            });
+
+            // Hyperbolic Function Toggle
+            const sciHypBtn = document.getElementById('sci-hyp-toggle');
+            sciHypBtn.addEventListener('click', () => {
+              this.hypFunctionActive = !this.hypFunctionActive;
+              sciHypBtn.className = this.hypFunctionActive
+                ? 'px-3 py-1 rounded-xl text-xs font-bold transition-all bg-brand-600 text-white shadow-sm'
+                : 'px-3 py-1 rounded-xl text-xs font-bold transition-all bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700';
+
+              const sinBtn = document.getElementById('btn-trig-sin');
+              const cosBtn = document.getElementById('btn-trig-cos');
+              const tanBtn = document.getElementById('btn-trig-tan');
+
+              sinBtn.textContent = this.hypFunctionActive ? 'sinh' : (this.secondFunctionActive ? 'asin' : 'sin');
+              cosBtn.textContent = this.hypFunctionActive ? 'cosh' : (this.secondFunctionActive ? 'acos' : 'cos');
+              tanBtn.textContent = this.hypFunctionActive ? 'tanh' : (this.secondFunctionActive ? 'atan' : 'tan');
+            });
+
+            // Programmer Base rows click
+            document.querySelectorAll('.base-row-btn').forEach(btn => {
+              btn.addEventListener('click', () => {
+                const b = btn.getAttribute('data-base');
+                this.programmerEngine.setBase(b);
+                this.updateProgrammerUI();
+                this.updateKeypadState();
+                this.showToast(`Input Base set to ${b}`);
+              });
+            });
+
+            // Programmer Word Size buttons
+            document.querySelectorAll('.word-size-btn').forEach(btn => {
+              btn.addEventListener('click', () => {
+                const sz = btn.getAttribute('data-size');
+                this.programmerEngine.setWordSize(sz);
+                this.activeWordBadge.textContent = `${sz}-bit ${this.getWordName(Number(sz))}`;
+                this.updateProgrammerUI();
+                this.showToast(`Word size: ${sz}-bit`);
+              });
+            });
+
+            // Programmer Signed/Unsigned toggle
+            document.getElementById('prog-signed-toggle').addEventListener('click', () => {
+              this.programmerEngine.toggleSigned();
+              this.updateProgrammerUI();
+            });
+
+            // Footer Base Click -> cycle base
+            this.footerBase.addEventListener('click', () => {
+              const bases = ['DEC', 'HEX', 'BIN', 'OCT'];
+              const next = bases[(bases.indexOf(this.programmerEngine.base) + 1) % bases.length];
+              this.programmerEngine.setBase(next);
+              this.updateProgrammerUI();
+              this.updateKeypadState();
+              this.showToast(`Base set to ${next}`);
+            });
+
+            // Keypad Event Delegation
+            document.getElementById('keypad-container').addEventListener('click', (e) => {
+              const btn = e.target.closest('.calc-btn');
+              if (!btn || btn.disabled) return;
+
+              const action = btn.getAttribute('data-action');
+              const val = btn.getAttribute('data-val');
+              const fn = btn.getAttribute('data-fn');
+              const op = btn.getAttribute('data-op');
+
+              switch (action) {
+                case 'num':
+                  this.inputDigit(val);
+                  break;
+                case 'decimal':
+                  this.inputDecimal();
+                  break;
+                case 'op':
+                  this.inputOperator(val);
+                  break;
+                case 'paren':
+                  this.inputParenthesis(val);
+                  break;
+                case 'fn':
+                  this.applyFunction(fn);
+                  break;
+                case 'const':
+                  this.inputConstant(val);
+                  break;
+                case 'negate':
+                  this.toggleNegate();
+                  break;
+                case 'percent':
+                  this.applyPercent();
+                  break;
+                case 'equals':
+                  this.calculate();
+                  break;
+                case 'clear':
+                  this.clearAll();
+                  break;
+                case 'backspace':
+                  this.backspace();
+                  break;
+                case 'mc':
+                case 'mr':
+                case 'ms':
+                case 'm-plus':
+                case 'm-minus':
+                  this.memoryAction(action);
+                  break;
+                case 'bit-op':
+                  if (op === 'NOT') {
+                    this.programmerEngine.applyBitOp('NOT');
+                    this.currentInput = this.programmerEngine.getAllRepresentations().dec;
+                    this.updateDisplay();
+                  } else {
+                    this.inputOperator(` ${op} `);
+                  }
+                  break;
+              }
+            });
+
+            // Graphing Mode Controls
+            const graphZoomInBtn = document.getElementById('graph-zoom-in-btn');
+            const graphZoomOutBtn = document.getElementById('graph-zoom-out-btn');
+            const graphAspectSquareBtn = document.getElementById('graph-aspect-square-btn');
+            const graphResetViewBtn = document.getElementById('graph-reset-view-btn');
+
+            if (graphZoomInBtn) graphZoomInBtn.addEventListener('click', () => this.graphingEngine.zoom(0.8));
+            if (graphZoomOutBtn) graphZoomOutBtn.addEventListener('click', () => this.graphingEngine.zoom(1.25));
+            if (graphAspectSquareBtn) graphAspectSquareBtn.addEventListener('click', () => this.graphingEngine.setSquareAspect());
+            if (graphResetViewBtn) graphResetViewBtn.addEventListener('click', () => this.graphingEngine.resetView());
+
+            // Graphing Function Adder
+            const graphAddFuncBtn = document.getElementById('graph-add-func-btn');
+            if (graphAddFuncBtn) {
+              graphAddFuncBtn.addEventListener('click', () => {
+                this.graphingEngine.addFunction('');
+                this.renderGraphFunctionsUI();
+                const newRow = this.graphFunctionsList.lastElementChild;
+                if (newRow) {
+                  const input = newRow.querySelector('.func-expr-input');
+                  if (input) input.focus();
+                }
+              });
+            }
+
+            // Quick Curve Presets
+            document.querySelectorAll('.graph-preset-chip').forEach(chip => {
+              chip.addEventListener('click', () => {
+                const expr = chip.getAttribute('data-expr');
+                if (!expr) return;
+                if (this.graphingEngine.functions.length === 0) {
+                  this.graphingEngine.addFunction(expr);
+                } else {
+                  this.graphingEngine.setFunctionExpr(this.graphingEngine.functions[0].id, expr);
+                }
+                this.renderGraphFunctionsUI();
+                this.showToast(`Applied preset: ${expr}`);
+              });
+            });
+
+            // Graphing Bounds Modal
+            const openBoundsModal = () => {
+              document.getElementById('bound-xmin').value = this.graphingEngine.bounds.xMin;
+              document.getElementById('bound-xmax').value = this.graphingEngine.bounds.xMax;
+              document.getElementById('bound-ymin').value = this.graphingEngine.bounds.yMin;
+              document.getElementById('bound-ymax').value = this.graphingEngine.bounds.yMax;
+              this.boundsModal.classList.remove('hidden');
+            };
+            const closeBoundsModal = () => {
+              this.boundsModal.classList.add('hidden');
+            };
+
+            const boundsModalBtn = document.getElementById('graph-bounds-modal-btn');
+            if (boundsModalBtn) boundsModalBtn.addEventListener('click', openBoundsModal);
+            const closeBoundsBtn = document.getElementById('close-bounds-modal');
+            if (closeBoundsBtn) closeBoundsBtn.addEventListener('click', closeBoundsModal);
+            const cancelBoundsBtn = document.getElementById('cancel-bounds-btn');
+            if (cancelBoundsBtn) cancelBoundsBtn.addEventListener('click', closeBoundsModal);
+
+            this.boundsModal.addEventListener('click', (e) => {
+              if (e.target === this.boundsModal) closeBoundsModal();
+            });
+
+            // Preset View Windows inside Bounds Modal
+            document.querySelectorAll('.preset-window-btn').forEach(btn => {
+              btn.addEventListener('click', () => {
+                const xmin = parseFloat(btn.getAttribute('data-xmin'));
+                const xmax = parseFloat(btn.getAttribute('data-xmax'));
+                const ymin = parseFloat(btn.getAttribute('data-ymin'));
+                const ymax = parseFloat(btn.getAttribute('data-ymax'));
+                if (!isNaN(xmin) && !isNaN(xmax) && !isNaN(ymin) && !isNaN(ymax)) {
+                  this.graphingEngine.setBounds(xmin, xmax, ymin, ymax);
+                  closeBoundsModal();
+                  this.showToast('Applied window preset');
+                }
+              });
+            });
+
+            // Submit Custom Bounds Form
+            const boundsForm = document.getElementById('bounds-form');
+            if (boundsForm) {
+              boundsForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const xmin = parseFloat(document.getElementById('bound-xmin').value);
+                const xmax = parseFloat(document.getElementById('bound-xmax').value);
+                const ymin = parseFloat(document.getElementById('bound-ymin').value);
+                const ymax = parseFloat(document.getElementById('bound-ymax').value);
+
+                if (isNaN(xmin) || isNaN(xmax) || isNaN(ymin) || isNaN(ymax)) {
+                  this.showToast('Invalid bounds: all fields must be valid numbers');
+                  return;
+                }
+                if (xmin >= xmax) {
+                  this.showToast('X Minimum must be less than X Maximum');
+                  return;
+                }
+                if (ymin >= ymax) {
+                  this.showToast('Y Minimum must be less than Y Maximum');
+                  return;
+                }
+
+                this.graphingEngine.setBounds(xmin, xmax, ymin, ymax);
+                closeBoundsModal();
+                this.showToast('Updated graph view bounds');
+              });
+            }
+
+            // Modals handling
+            const openShortcuts = () => this.shortcutsModal.classList.remove('hidden');
+            const closeShortcuts = () => this.shortcutsModal.classList.add('hidden');
+            document.getElementById('shortcuts-modal-btn').addEventListener('click', openShortcuts);
+            document.getElementById('footer-shortcuts-btn').addEventListener('click', openShortcuts);
+            document.getElementById('close-shortcuts-modal').addEventListener('click', closeShortcuts);
+            document.getElementById('close-shortcuts-modal-btn').addEventListener('click', closeShortcuts);
+            this.shortcutsModal.addEventListener('click', (e) => {
+              if (e.target === this.shortcutsModal) closeShortcuts();
+            });
+
+            const openPrivacy = () => this.privacyModal.classList.remove('hidden');
+            const closePrivacy = () => this.privacyModal.classList.add('hidden');
+            document.getElementById('footer-privacy-btn').addEventListener('click', openPrivacy);
+            document.getElementById('close-privacy-modal').addEventListener('click', closePrivacy);
+            document.getElementById('close-privacy-modal-btn').addEventListener('click', closePrivacy);
+            this.privacyModal.addEventListener('click', (e) => {
+              if (e.target === this.privacyModal) closePrivacy();
+            });
+
+            // Keyboard Shortcuts Listener
+            window.addEventListener('keydown', (e) => {
+              // Ignore if typing in an input element or modal is open
+              if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+              const key = e.key;
+
+              // Check modal escape
+              if (key === 'Escape') {
+                if (this.boundsModal && !this.boundsModal.classList.contains('hidden')) {
+                  closeBoundsModal();
+                  return;
+                }
+                if (!this.shortcutsModal.classList.contains('hidden')) {
+                  closeShortcuts();
+                  return;
+                }
+                if (!this.privacyModal.classList.contains('hidden')) {
+                  closePrivacy();
+                  return;
+                }
+                if (!this.drawer.classList.contains('translate-x-full')) {
+                  this.toggleDrawer(false);
+                  return;
+                }
+                this.clearAll();
+                this.highlightButtonByKey('Escape');
+                return;
+              }
+
+              // Digits 0-9
+              if (/^[0-9]$/.test(key)) {
+                this.highlightButtonByKey(key);
+                this.inputDigit(key);
+                return;
+              }
+
+              // Hex characters in programmer mode (A-F)
+              if (this.currentMode === 'programmer' && /^[a-fA-F]$/.test(key)) {
+                const hexChar = key.toUpperCase();
+                this.highlightButtonByKey(hexChar);
+                this.inputDigit(hexChar);
+                return;
+              }
+
+              // Decimal point
+              if (key === '.') {
+                this.highlightButtonByKey('.');
+                this.inputDecimal();
+                return;
+              }
+
+              // Operators
+              if (key === '+' || key === '-' || key === '*' || key === '/') {
+                this.highlightButtonByKey(key);
+                this.inputOperator(key);
+                return;
+              }
+
+              // Enter or Equals
+              if (key === 'Enter' || key === '=') {
+                e.preventDefault();
+                this.highlightButtonByKey('Enter');
+                this.calculate();
+                return;
+              }
+
+              // Backspace / Delete
+              if (key === 'Backspace' || key === 'Delete') {
+                e.preventDefault();
+                this.highlightButtonByKey('Backspace');
+                this.backspace();
+                return;
+              }
+
+              // Parentheses
+              if (key === '(' || key === ')') {
+                this.inputParenthesis(key);
+                return;
+              }
+
+              // Percentage
+              if (key === '%') {
+                this.highlightButtonByKey('%');
+                this.applyPercent();
+                return;
+              }
+
+              // Power
+              if (key === '^') {
+                this.highlightButtonByKey('^');
+                this.inputOperator('^');
+                return;
+              }
+
+              // Factorial
+              if (key === '!') {
+                this.highlightButtonByKey('!');
+                this.applyFunction('fact');
+                return;
+              }
+
+              // Scientific shortcut keys (sin, cos, tan, ln, log, sqrt, pi, e)
+              const lowerKey = key.toLowerCase();
+              if (lowerKey === 's') {
+                this.highlightButtonByKey('s');
+                this.applyFunction('sin');
+              } else if (lowerKey === 'c') {
+                this.highlightButtonByKey('c');
+                this.applyFunction('cos');
+              } else if (lowerKey === 't') {
+                this.highlightButtonByKey('t');
+                this.applyFunction('tan');
+              } else if (lowerKey === 'l') {
+                this.highlightButtonByKey('l');
+                this.applyFunction('ln');
+              } else if (lowerKey === 'g') {
+                this.highlightButtonByKey('g');
+                this.applyFunction('log10');
+              } else if (lowerKey === 'r') {
+                this.highlightButtonByKey('r');
+                this.applyFunction('sqrt');
+              } else if (lowerKey === 'p') {
+                this.inputConstant('pi');
+              } else if (lowerKey === 'e' && this.currentMode !== 'programmer') {
+                this.inputConstant('e');
+              } else if (lowerKey === 'h') {
+                // Toggle history drawer
+                this.toggleDrawer();
+              } else if (lowerKey === 'm') {
+                // Cycle mode (all 4 modes)
+                const modes = ['standard', 'scientific', 'programmer', 'graphing'];
+                const nextMode = modes[(modes.indexOf(this.currentMode) + 1) % modes.length];
+                this.setMode(nextMode);
+                this.showToast(`Switched to ${nextMode.toUpperCase()} mode`);
+              }
+            });
+          }
+        }
+
+        // Initialize application on DOM ready
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', () => new ApexCalcApp());
+        } else {
+          new ApexCalcApp();
+        }
+      })();
+    </script>
+  </body>
+</html>

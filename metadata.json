@@ -1,0 +1,6 @@
+{
+  "name": "Mike Calc - Precision Scientific, Graphing & Programmer Calculator",
+  "description": "Mike Calc - A world-class, feature-complete browser-based calculator featuring Standard, Scientific, Graphing, and Programmer modes with interactive canvas coordinate plane, history, memory, precision math engine, and keyboard navigation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
